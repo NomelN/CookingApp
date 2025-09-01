@@ -134,9 +134,3 @@ Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de 
 ## 👨‍💻 Auteur
 
 **Mickaël Nomel**
-
-## 🙏 Remerciements
-
-- Vision Framework d'Apple pour la reconnaissance OCR
-- SF Symbols pour les icônes
-- Communauté SwiftUI pour l'inspiration
