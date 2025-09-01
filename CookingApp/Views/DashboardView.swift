@@ -179,17 +179,24 @@ struct ProductCardView: View {
                         .buttonStyle(PlainButtonStyle())
                     }
                     
-                    // Badge de statut simplifié
+                    // Affichage des jours restants
                     HStack {
                         HStack(spacing: 8) {
                             Circle()
                                 .fill(product.statusColor)
                                 .frame(width: 10, height: 10)
                             
-                            Text(product.expirationStatus.description)
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .foregroundColor(product.statusColor)
+                            if product.daysUntilExpiration >= 0 {
+                                Text("\(product.daysUntilExpiration) jour\(product.daysUntilExpiration > 1 ? "s" : "") restant\(product.daysUntilExpiration > 1 ? "s" : "")")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(product.statusColor)
+                            } else {
+                                Text("Expiré depuis \(abs(product.daysUntilExpiration)) jour\(abs(product.daysUntilExpiration) > 1 ? "s" : "")")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(ColorTheme.expiredRed)
+                            }
                         }
                         
                         Spacer()
