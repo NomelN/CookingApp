@@ -46,32 +46,51 @@ struct HeaderStatsView: View {
     @Binding var selectedPeriod: TimePeriod
     
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 20) {
             HStack {
-                Text("Période d'analyse")
-                    .font(.headline)
-                    .foregroundColor(ColorTheme.primaryText)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Période d'analyse")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(ColorTheme.primaryText)
+                    
+                    Text("Sélectionnez la période pour voir vos statistiques")
+                        .font(.subheadline)
+                        .foregroundColor(ColorTheme.secondaryText)
+                }
                 Spacer()
             }
             
-            HStack(spacing: 12) {
-                ForEach(TimePeriod.allCases, id: \.self) { period in
-                    Button(action: {
-                        selectedPeriod = period
-                    }) {
-                        Text(period.displayName)
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 10)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(TimePeriod.allCases, id: \.self) { period in
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                selectedPeriod = period
+                            }
+                        }) {
+                            VStack(spacing: 8) {
+                                Image(systemName: period.iconName)
+                                    .font(.title3)
+                                    .foregroundColor(selectedPeriod == period ? .white : ColorTheme.primaryGreen)
+                                
+                                Text(period.displayName)
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(selectedPeriod == period ? .white : ColorTheme.primaryText)
+                                
+                                Text(period.subtitle)
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundColor(selectedPeriod == period ? .white.opacity(0.8) : ColorTheme.secondaryText)
+                            }
+                            .frame(width: 90, height: 80)
                             .background(
                                 periodBackgroundView(for: period)
                             )
-                            .foregroundColor(selectedPeriod == period ? .white : ColorTheme.primaryText)
+                        }
+                        .buttonStyle(PlainButtonStyle())
                     }
-                    .buttonStyle(PlainButtonStyle())
                 }
-                Spacer()
+                .padding(.horizontal, 20)
             }
         }
         .padding(20)
@@ -573,6 +592,24 @@ enum TimePeriod: CaseIterable {
         case .month: return "Mois"
         case .quarter: return "Trimestre"
         case .year: return "Année"
+        }
+    }
+    
+    var subtitle: String {
+        switch self {
+        case .week: return "7 derniers jours"
+        case .month: return "30 derniers jours"
+        case .quarter: return "90 derniers jours"
+        case .year: return "365 derniers jours"
+        }
+    }
+    
+    var iconName: String {
+        switch self {
+        case .week: return "calendar.badge.clock"
+        case .month: return "calendar"
+        case .quarter: return "calendar.badge.plus"
+        case .year: return "calendar.circle"
         }
     }
     
