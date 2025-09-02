@@ -59,8 +59,14 @@ struct EditProductView: View {
                         
                         HStack(spacing: 16) {
                             Button("Appareil photo") {
-                                if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                                    showingCamera = true
+                                CameraPermissionManager.shared.requestCameraPermission { granted in
+                                    DispatchQueue.main.async {
+                                        if granted && UIImagePickerController.isSourceTypeAvailable(.camera) {
+                                            showingCamera = true
+                                        } else if !granted {
+                                            print("❌ Permission caméra refusée")
+                                        }
+                                    }
                                 }
                             }
                             .buttonStyle(.bordered)

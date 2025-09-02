@@ -15,7 +15,10 @@ class PersistenceController: ObservableObject {
         
         container.loadPersistentStores { _, error in
             if let error = error as NSError? {
-                fatalError("Unresolved error \(error), \(error.userInfo)")
+                print("❌ Core Data error: \(error), \(error.userInfo)")
+                // Ne pas faire crasher l'app, juste logger l'erreur
+            } else {
+                print("✅ Core Data loaded successfully")
             }
         }
         
@@ -28,9 +31,11 @@ class PersistenceController: ObservableObject {
         if context.hasChanges {
             do {
                 try context.save()
+                print("✅ Core Data saved successfully")
             } catch {
                 let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
+                print("❌ Core Data save error: \(nsError), \(nsError.userInfo)")
+                // Ne pas faire crasher l'app
             }
         }
     }
@@ -53,9 +58,10 @@ extension PersistenceController {
         
         do {
             try viewContext.save()
+            print("✅ Preview data created successfully")
         } catch {
             let nsError = error as NSError
-            fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
+            print("❌ Preview data creation error: \(nsError), \(nsError.userInfo)")
         }
         
         return controller
