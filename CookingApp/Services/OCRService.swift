@@ -41,14 +41,14 @@ class OCRService: ObservableObject {
         }
     }
     
-    func extractProductInfo(from image: UIImage, completion: @escaping (ProductInfo) -> Void) {
+    func extractProductInfo(from image: UIImage, completion: @escaping (OCRProductInfo) -> Void) {
         extractText(from: image) { recognizedStrings in
             let productInfo = self.parseProductInfo(from: recognizedStrings)
             completion(productInfo)
         }
     }
     
-    private func parseProductInfo(from texts: [String]) -> ProductInfo {
+    private func parseProductInfo(from texts: [String]) -> OCRProductInfo {
         var productName: String?
         var expirationDate: Date?
         
@@ -103,11 +103,11 @@ class OCRService: ObservableObject {
             }
         }
         
-        return ProductInfo(name: productName, expirationDate: expirationDate)
+        return OCRProductInfo(name: productName, expirationDate: expirationDate)
     }
 }
 
-struct ProductInfo {
+struct OCRProductInfo {
     let name: String?
     let expirationDate: Date?
 }

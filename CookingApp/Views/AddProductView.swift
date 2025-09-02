@@ -16,6 +16,12 @@ struct AddProductView: View {
     @State private var isProcessingOCR = false
     @StateObject private var ocrService = OCRService.shared
     
+    // Scanner de code-barres
+    @State private var showingBarcodeScanner = false
+    @State private var scannedBarcode: String?
+    @State private var isLoadingProductInfo = false
+    @State private var scannerAlertMessage: String?
+    
     var body: some View {
         NavigationView {
             ZStack {
@@ -48,6 +54,14 @@ struct AddProductView: View {
                             }
                             
                             VStack(spacing: 16) {
+                                // Bouton Scanner de code-barres
+                                BarcodescannerButtonView(
+                                    isLoading: isLoadingProductInfo,
+                                    onScanAction: {
+                                        showingBarcodeScanner = true
+                                    }
+                                )
+                                
                                 CustomTextField(title: "Nom du produit", text: $productName, placeholder: "Ex: Lait, Yaourt...")
                                 
                                 CustomDatePicker(selection: $expirationDate)
@@ -155,6 +169,12 @@ struct AddProductView: View {
                     processImageWithOCR(image)
                 }
             }
+            .sheet(isPresented: $showingBarcodeScanner) {
+                BarcodeScannerSheet(
+                    scannedCode: $scannedBarcode,
+                    alertMessage: $scannerAlertMessage
+                )
+            }
             .onChange(of: selectedImage) {
                 Task {
                     if let newItem = selectedImage {
@@ -166,6 +186,19 @@ struct AddProductView: View {
                         }
                     }
                 }
+            }
+            .onChange(of: scannedBarcode) {
+                if let barcode = scannedBarcode {
+                    showingBarcodeScanner = false
+                    fetchProductFromBarcode(barcode)
+                }
+            }
+            .alert("Erreur Scanner", isPresented: .constant(scannerAlertMessage != nil)) {
+                Button("OK") {
+                    scannerAlertMessage = nil
+                }
+            } message: {
+                Text(scannerAlertMessage ?? "")
             }
         }
         .onChange(of: themeManager.currentTheme) { _ in
@@ -191,6 +224,51 @@ struct AddProductView: View {
                 self.isProcessingOCR = false
             }
         }
+    }
+    
+    private func fetchProductFromBarcode(_ barcode: String) {
+        isLoadingProductInfo = true
+        
+        ProductDatabaseService.shared.fetchProductInfo(barcode: barcode) { productInfo in
+            DispatchQueue.main.async {
+                self.isLoadingProductInfo = false
+                
+                if let product = productInfo {
+                    // Préremplir les champs avec les informations trouvées
+                    if let name = product.displayName, self.productName.isEmpty {
+                        self.productName = name
+                    }
+                    
+                    if let description = product.productDescription, self.productDescription.isEmpty {
+                        self.productDescription = description
+                    }
+                    
+                    // Charger l'image du produit si disponible
+                    if let imageUrl = product.bestImageUrl {
+                        self.loadImageFromURL(imageUrl)
+                    }
+                    
+                    // Réinitialiser le code scanné pour permettre un nouveau scan
+                    self.scannedBarcode = nil
+                } else {
+                    // Produit non trouvé dans la base de données
+                    self.scannerAlertMessage = "Produit non trouvé dans la base de données Open Food Facts. Veuillez saisir les informations manuellement."
+                    self.scannedBarcode = nil
+                }
+            }
+        }
+    }
+    
+    private func loadImageFromURL(_ urlString: String) {
+        guard let url = URL(string: urlString) else { return }
+        
+        URLSession.shared.dataTask(with: url) { data, response, error in
+            DispatchQueue.main.async {
+                if let data = data, let image = UIImage(data: data) {
+                    self.productImage = image
+                }
+            }
+        }.resume()
     }
     
     private func saveProduct() {
@@ -480,6 +558,55 @@ struct EmptyImagePlaceholderView: View {
                         .multilineTextAlignment(.center)
                 }
             )
+    }
+}
+
+struct BarcodescannerButtonView: View {
+    let isLoading: Bool
+    let onScanAction: () -> Void
+    
+    var body: some View {
+        Button(action: onScanAction) {
+            HStack(spacing: 12) {
+                if isLoading {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                        .tint(.white)
+                } else {
+                    Image(systemName: "barcode.viewfinder")
+                        .font(.system(size: 18, weight: .semibold))
+                }
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(isLoading ? "Recherche en cours..." : "Scanner un code-barres")
+                        .font(.system(size: 16, weight: .semibold))
+                    Text(isLoading ? "Veuillez patienter" : "Identification automatique du produit")
+                        .font(.system(size: 12, weight: .medium))
+                        .opacity(0.9)
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .medium))
+                    .opacity(0.7)
+            }
+            .foregroundColor(.white)
+            .padding(.vertical, 16)
+            .padding(.horizontal, 20)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(
+                        isLoading ?
+                        LinearGradient(colors: [Color.orange.opacity(0.8), Color.orange], startPoint: .leading, endPoint: .trailing) :
+                        LinearGradient(colors: [ColorTheme.primaryPurple, ColorTheme.primaryBlue], startPoint: .leading, endPoint: .trailing)
+                    )
+                    .shadow(color: isLoading ? Color.orange.opacity(0.3) : ColorTheme.primaryPurple.opacity(0.3), radius: 8, x: 0, y: 4)
+            )
+        }
+        .disabled(isLoading)
+        .scaleEffect(isLoading ? 0.98 : 1.0)
+        .animation(.easeInOut(duration: 0.2), value: isLoading)
     }
 }
 
