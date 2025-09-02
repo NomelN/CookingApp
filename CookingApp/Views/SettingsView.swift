@@ -2,28 +2,27 @@ import SwiftUI
 
 struct SettingsView: View {
     @StateObject private var notificationManager = NotificationManager.shared
-    @StateObject private var themeManager = ThemeManager.shared
+    @EnvironmentObject private var themeManager: ThemeManager
     @State private var notificationSettings = NotificationSettings.shared
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
         NavigationView {
             ZStack {
-                ColorTheme.backgroundLight
+                ColorTheme.backgroundLight(isDark: themeManager.isDarkMode)
                     .ignoresSafeArea()
                 
                 ScrollView {
                     VStack(spacing: 24) {
                         // Section Notifications
                         VStack(spacing: 20) {
-                            HStack {
-                                Image(systemName: "bell.fill")
-                                    .foregroundColor(ColorTheme.accentOrange)
-                                Text("Notifications")
-                                    .font(.headline)
-                                    .foregroundColor(ColorTheme.primaryText)
-                                Spacer()
-                            }
+                            SectionHeader(
+                                title: "Notifications",
+                                subtitle: "Gérez vos rappels d'expiration",
+                                iconName: "bell.fill",
+                                color: ColorTheme.accentOrange,
+                                isDarkMode: themeManager.isDarkMode
+                            )
                             
                             if !notificationManager.hasPermission {
                                 VStack(alignment: .leading, spacing: 16) {
@@ -38,7 +37,7 @@ struct SettingsView: View {
                                     
                                     Text("Activez les notifications pour recevoir des rappels avant l'expiration de vos produits.")
                                         .font(.subheadline)
-                                        .foregroundColor(ColorTheme.secondaryText)
+                                        .foregroundColor(ColorTheme.secondaryText(isDark: themeManager.isDarkMode))
                                         .lineSpacing(2)
                                     
                                     Button("Activer les notifications") {
@@ -58,7 +57,7 @@ struct SettingsView: View {
                                     Text("Recevoir des rappels :")
                                         .font(.subheadline)
                                         .fontWeight(.medium)
-                                        .foregroundColor(ColorTheme.primaryText)
+                                        .foregroundColor(ColorTheme.primaryText(isDark: themeManager.isDarkMode))
                                     
                                     VStack(spacing: 12) {
                                         NotificationToggleRow(
@@ -93,32 +92,19 @@ struct SettingsView: View {
                             }
                         }
                         .padding(20)
-                        .background(ColorTheme.cardBackground)
+                        .background(ColorTheme.cardBackground(isDark: themeManager.isDarkMode))
                         .clipShape(RoundedRectangle(cornerRadius: 20))
-                        .shadow(color: ColorTheme.shadowColor, radius: 8, x: 0, y: 4)
+                        .shadow(color: ColorTheme.shadowColor(isDark: themeManager.isDarkMode), radius: 8, x: 0, y: 4)
                         
                         // Section Thème
                         VStack(spacing: 20) {
-                            HStack(spacing: 12) {
-                                ZStack {
-                                    Circle()
-                                        .fill(ColorTheme.primaryPurple.opacity(0.15))
-                                        .frame(width: 32, height: 32)
-                                    Image(systemName: themeManager.currentTheme.iconName)
-                                        .font(.system(size: 16, weight: .semibold))
-                                        .foregroundColor(ColorTheme.primaryPurple)
-                                }
-                                
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Apparence")
-                                        .font(.system(size: 18, weight: .semibold))
-                                        .foregroundColor(ColorTheme.primaryText)
-                                    Text("Choisissez votre thème préféré")
-                                        .font(.system(size: 13, weight: .medium))
-                                        .foregroundColor(ColorTheme.secondaryText)
-                                }
-                                Spacer()
-                            }
+                            SectionHeader(
+                                title: "Apparence",
+                                subtitle: "Choisissez votre thème préféré",
+                                iconName: themeManager.currentTheme.iconName,
+                                color: ColorTheme.primaryPurple,
+                                isDarkMode: themeManager.isDarkMode
+                            )
                             
                             VStack(spacing: 12) {
                                 ForEach(ThemeMode.allCases, id: \.self) { theme in
@@ -133,20 +119,19 @@ struct SettingsView: View {
                             }
                         }
                         .padding(20)
-                        .background(ColorTheme.cardBackground)
+                        .background(ColorTheme.cardBackground(isDark: themeManager.isDarkMode))
                         .clipShape(RoundedRectangle(cornerRadius: 20))
-                        .shadow(color: ColorTheme.shadowColor, radius: 8, x: 0, y: 4)
+                        .shadow(color: ColorTheme.shadowColor(isDark: themeManager.isDarkMode), radius: 8, x: 0, y: 4)
                         
                         // Section À propos
                         VStack(spacing: 20) {
-                            HStack {
-                                Image(systemName: "info.circle.fill")
-                                    .foregroundColor(ColorTheme.navyBlue)
-                                Text("À propos")
-                                    .font(.headline)
-                                    .foregroundColor(ColorTheme.primaryText)
-                                Spacer()
-                            }
+                            SectionHeader(
+                                title: "À propos",
+                                subtitle: "Informations sur l'application",
+                                iconName: "info.circle.fill",
+                                color: ColorTheme.primaryBlue,
+                                isDarkMode: themeManager.isDarkMode
+                            )
                             
                             VStack(spacing: 16) {
                                 InfoRow(title: "Version", value: "1.0.0", icon: "app.badge")
@@ -155,9 +140,9 @@ struct SettingsView: View {
                             }
                         }
                         .padding(20)
-                        .background(ColorTheme.cardBackground)
+                        .background(ColorTheme.cardBackground(isDark: themeManager.isDarkMode))
                         .clipShape(RoundedRectangle(cornerRadius: 20))
-                        .shadow(color: ColorTheme.shadowColor, radius: 8, x: 0, y: 4)
+                        .shadow(color: ColorTheme.shadowColor(isDark: themeManager.isDarkMode), radius: 8, x: 0, y: 4)
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 20)
@@ -165,15 +150,6 @@ struct SettingsView: View {
             }
             .navigationTitle("⚙️ Paramètres")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Fermer") {
-                        dismiss()
-                    }
-                    .foregroundColor(ColorTheme.primaryGreen)
-                    .fontWeight(.medium)
-                }
-            }
         }
         .navigationViewStyle(StackNavigationViewStyle())
         .onAppear {
@@ -222,7 +198,7 @@ struct InfoRow: View {
         HStack(spacing: 16) {
             Image(systemName: icon)
                 .font(.title3)
-                .foregroundColor(ColorTheme.navyBlue)
+                .foregroundColor(ColorTheme.primaryBlue)
                 .frame(width: 24, height: 24)
             
             Text(title)
@@ -240,8 +216,39 @@ struct InfoRow: View {
         .padding(.horizontal, 16)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(ColorTheme.navyBlue.opacity(0.05))
+                .fill(ColorTheme.primaryBlue.opacity(0.05))
         )
+    }
+}
+
+struct SectionHeader: View {
+    let title: String
+    let subtitle: String
+    let iconName: String
+    let color: Color
+    let isDarkMode: Bool
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(color.opacity(0.15))
+                    .frame(width: 32, height: 32)
+                Image(systemName: iconName)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(color)
+            }
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(ColorTheme.primaryText(isDark: isDarkMode))
+                Text(subtitle)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(ColorTheme.secondaryText(isDark: isDarkMode))
+            }
+            Spacer()
+        }
     }
 }
 

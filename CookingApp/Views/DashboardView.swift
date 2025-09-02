@@ -16,7 +16,7 @@ struct MainTabView: View {
             // Onglet Produits
             NavigationView {
                 ZStack {
-                    ColorTheme.backgroundLight
+                    ColorTheme.backgroundLight(isDark: themeManager.isDarkMode)
                         .ignoresSafeArea()
                     
                     VStack(spacing: 0) {
@@ -30,7 +30,7 @@ struct MainTabView: View {
                 .navigationTitle("🍎 Mes Produits")
                 .navigationBarTitleDisplayMode(.large)
                 .searchable(text: $viewModel.searchText, prompt: "Rechercher un produit")
-                .toolbarBackground(ColorTheme.cardBackground, for: .navigationBar)
+                .toolbarBackground(ColorTheme.cardBackground(isDark: themeManager.isDarkMode), for: .navigationBar)
                 .foregroundStyle(ColorTheme.primaryBlue)
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
@@ -117,6 +117,7 @@ struct ProductListView: View {
 struct ProductCardView: View {
     let product: Product
     @ObservedObject var viewModel: ProductsViewModel
+    @EnvironmentObject private var themeManager: ThemeManager
     @State private var showingConsumeAlert = false
     
     var body: some View {
@@ -133,7 +134,7 @@ struct ProductCardView: View {
                     } else {
                         RoundedRectangle(cornerRadius: 16)
                             .fill(LinearGradient(
-                                colors: [ColorTheme.primaryGreen.opacity(0.3), ColorTheme.navyBlue.opacity(0.3)],
+                                colors: [ColorTheme.primaryGreen.opacity(0.3), ColorTheme.primaryBlue.opacity(0.3)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             ))
@@ -153,13 +154,13 @@ struct ProductCardView: View {
                             Text(product.name ?? "Produit")
                                 .font(.headline)
                                 .fontWeight(.semibold)
-                                .foregroundColor(ColorTheme.primaryText)
+                                .foregroundColor(ColorTheme.primaryText(isDark: themeManager.isDarkMode))
                                 .lineLimit(1)
                             
                             if let description = product.productDescription, !description.isEmpty {
                                 Text(description)
                                     .font(.subheadline)
-                                    .foregroundColor(ColorTheme.secondaryText)
+                                    .foregroundColor(ColorTheme.secondaryText(isDark: themeManager.isDarkMode))
                                     .lineLimit(1)
                             }
                         }
@@ -214,7 +215,7 @@ struct ProductCardView: View {
                 GeometryReader { geometry in
                     ZStack(alignment: .leading) {
                         Rectangle()
-                            .fill(ColorTheme.navyBlue.opacity(0.1))
+                            .fill(ColorTheme.borderLight(isDark: themeManager.isDarkMode))
                             .frame(height: 3)
                         
                         Rectangle()
@@ -228,13 +229,13 @@ struct ProductCardView: View {
                 HStack {
                     HStack(spacing: 4) {
                         Image(systemName: "calendar.badge.clock")
-                            .foregroundColor(ColorTheme.secondaryText)
+                            .foregroundColor(ColorTheme.secondaryText(isDark: themeManager.isDarkMode))
                             .font(.caption)
                         
                         if let expirationDate = product.expirationDate {
                             Text("Expire le \(expirationDate, formatter: dateFormatter)")
                                 .font(.caption)
-                                .foregroundColor(ColorTheme.secondaryText)
+                                .foregroundColor(ColorTheme.secondaryText(isDark: themeManager.isDarkMode))
                         }
                     }
                     
@@ -248,11 +249,11 @@ struct ProductCardView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
             }
-            .background(ColorTheme.navyBlue.opacity(0.02))
+            .background(ColorTheme.sectionBackground(isDark: themeManager.isDarkMode))
         }
-        .background(ColorTheme.cardBackground)
+        .background(ColorTheme.cardBackground(isDark: themeManager.isDarkMode))
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: ColorTheme.shadowColor.opacity(0.15), radius: 12, x: 0, y: 6)
+        .shadow(color: ColorTheme.shadowColor(isDark: themeManager.isDarkMode).opacity(0.15), radius: 12, x: 0, y: 6)
         .scaleEffect(1.0)
         .animation(.easeInOut(duration: 0.2), value: product.isUsed)
         .alert("Marquer comme consommé", isPresented: $showingConsumeAlert) {
@@ -286,6 +287,8 @@ struct ProductCardView: View {
 }
 
 struct EmptyStateView: View {
+    @EnvironmentObject private var themeManager: ThemeManager
+    
     var body: some View {
         VStack(spacing: 32) {
             VStack(spacing: 24) {
@@ -304,11 +307,11 @@ struct EmptyStateView: View {
                     Text("🍎 Votre frigo est vide !")
                         .font(.title2)
                         .fontWeight(.bold)
-                        .foregroundColor(ColorTheme.primaryText)
+                        .foregroundColor(ColorTheme.primaryText(isDark: themeManager.isDarkMode))
                     
                     Text("Commencez à ajouter vos produits alimentaires pour suivre leurs dates d'expiration et réduire le gaspillage")
                         .font(.body)
-                        .foregroundColor(ColorTheme.secondaryText)
+                        .foregroundColor(ColorTheme.secondaryText(isDark: themeManager.isDarkMode))
                         .multilineTextAlignment(.center)
                         .lineSpacing(4)
                         .padding(.horizontal, 40)
@@ -322,17 +325,17 @@ struct EmptyStateView: View {
                         .frame(width: 8, height: 8)
                     Text("Prenez une photo de vos produits")
                         .font(.subheadline)
-                        .foregroundColor(ColorTheme.secondaryText)
+                        .foregroundColor(ColorTheme.secondaryText(isDark: themeManager.isDarkMode))
                     Spacer()
                 }
                 
                 HStack(spacing: 12) {
                     Circle()
-                        .fill(ColorTheme.navyBlue)
+                        .fill(ColorTheme.primaryBlue)
                         .frame(width: 8, height: 8)
                     Text("Recevez des rappels avant expiration")
                         .font(.subheadline)
-                        .foregroundColor(ColorTheme.secondaryText)
+                        .foregroundColor(ColorTheme.secondaryText(isDark: themeManager.isDarkMode))
                     Spacer()
                 }
                 
@@ -342,7 +345,7 @@ struct EmptyStateView: View {
                         .frame(width: 8, height: 8)
                     Text("Réduisez le gaspillage alimentaire")
                         .font(.subheadline)
-                        .foregroundColor(ColorTheme.secondaryText)
+                        .foregroundColor(ColorTheme.secondaryText(isDark: themeManager.isDarkMode))
                     Spacer()
                 }
             }
@@ -350,8 +353,8 @@ struct EmptyStateView: View {
             .padding(.vertical, 20)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(ColorTheme.cardBackground)
-                    .shadow(color: ColorTheme.shadowColor, radius: 8, x: 0, y: 4)
+                    .fill(ColorTheme.cardBackground(isDark: themeManager.isDarkMode))
+                    .shadow(color: ColorTheme.shadowColor(isDark: themeManager.isDarkMode), radius: 8, x: 0, y: 4)
             )
             .padding(.horizontal, 32)
         }

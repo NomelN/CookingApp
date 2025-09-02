@@ -2,6 +2,50 @@ import SwiftUI
 
 struct ColorTheme {
     private static var themeManager: ThemeManager { ThemeManager.shared }
+    
+    // === FONCTIONS DYNAMIQUES ===
+    static func backgroundLight(isDark: Bool) -> Color {
+        isDark ? 
+        Color(red: 0.08, green: 0.08, blue: 0.10) :  // Noir très doux #141419
+        Color(red: 0.97, green: 0.98, blue: 0.99)    // Gris très clair #F7FAFC
+    }
+    
+    static func cardBackground(isDark: Bool) -> Color {
+        isDark ?
+        Color(red: 0.12, green: 0.12, blue: 0.15) :  // Gris sombre #1F1F26
+        Color.white
+    }
+    
+    static func primaryText(isDark: Bool) -> Color {
+        isDark ?
+        Color(red: 0.95, green: 0.95, blue: 0.97) :  // Blanc doux #F2F2F7
+        Color(red: 0.11, green: 0.11, blue: 0.13)    // Noir moderne #1C1C21
+    }
+    
+    static func secondaryText(isDark: Bool) -> Color {
+        isDark ?
+        Color(red: 0.70, green: 0.70, blue: 0.75) :  // Gris clair mode sombre #B3B3BF
+        Color(red: 0.45, green: 0.45, blue: 0.50)    // Gris moderne #737380
+    }
+    
+    static func sectionBackground(isDark: Bool) -> Color {
+        isDark ?
+        Color(red: 0.10, green: 0.11, blue: 0.13) :  // Bleu très sombre #1A1C21
+        Color(red: 0.98, green: 0.99, blue: 1.0)     // Bleu très pâle #FAFDFF
+    }
+    
+    static func shadowColor(isDark: Bool) -> Color {
+        isDark ?
+        Color.black.opacity(0.25) :  // Ombre plus prononcée en mode sombre
+        Color.black.opacity(0.08)
+    }
+    
+    static func borderLight(isDark: Bool) -> Color {
+        isDark ?
+        Color(red: 0.25, green: 0.25, blue: 0.28) :  // Bordure sombre #404045
+        Color(red: 0.90, green: 0.90, blue: 0.92)    // Bordure subtile #E6E6EB
+    }
+    
     // === PALETTE MODERNE ===
     
     // Couleurs principales
