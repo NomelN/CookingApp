@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Cette application utilise l'appareil photo pour prendre des photos de vos produits alimentaires afin de faciliter leur identification et l'analyse automatique des dates d'expiration via OCR.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Cette application accède à votre galerie photo pour vous permettre de sélectionner des images de vos produits alimentaires et analyser automatiquement leurs dates d'expiration.</string>
+</dict>
+</plist>

@@ -14,6 +14,11 @@ class NotificationManager: ObservableObject {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
             DispatchQueue.main.async {
                 self.hasPermission = granted
+                if let error = error {
+                    print("⚠️ Notification permission error: \(error)")
+                } else {
+                    print("✅ Notification permission: \(granted)")
+                }
             }
         }
     }

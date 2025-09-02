@@ -74,8 +74,14 @@ struct AddProductView: View {
                                         isProcessingOCR: isProcessingOCR,
                                         selectedImage: $selectedImage,
                                         onCameraAction: {
-                                            if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                                                showingCamera = true
+                                            CameraPermissionManager.shared.requestCameraPermission { granted in
+                                                DispatchQueue.main.async {
+                                                    if granted && UIImagePickerController.isSourceTypeAvailable(.camera) {
+                                                        showingCamera = true
+                                                    } else if !granted {
+                                                        print("❌ Permission caméra refusée")
+                                                    }
+                                                }
                                             }
                                         }
                                     )
@@ -179,16 +185,31 @@ struct CameraPickerView: UIViewControllerRepresentable {
     let onImagePicked: (UIImage) -> Void
     @Environment(\.dismiss) private var dismiss
     
-    func makeUIViewController(context: Context) -> UIImagePickerController {
+    func makeUIViewController(context: Context) -> UIViewController {
+        guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
+            print("❌ Camera not available")
+            let errorController = UIViewController()
+            DispatchQueue.main.async {
+                dismiss()
+            }
+            return errorController
+        }
+        
         let picker = UIImagePickerController()
         picker.sourceType = .camera
         picker.allowsEditing = false
         picker.cameraCaptureMode = .photo
+        picker.cameraDevice = .rear
         picker.delegate = context.coordinator
+        
+        // Ajout de gestion d'erreur pour éviter les crashs
+        picker.modalPresentationStyle = .fullScreen
+        
+        print("✅ Camera picker created successfully")
         return picker
     }
     
-    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
     
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -202,10 +223,14 @@ struct CameraPickerView: UIViewControllerRepresentable {
         }
         
         func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
-            if let image = info[.originalImage] as? UIImage {
-                parent.onImagePicked(image)
+            defer { parent.dismiss() }
+            
+            guard let image = info[.originalImage] as? UIImage else {
+                print("Erreur: Impossible de récupérer l'image de l'appareil photo")
+                return
             }
-            parent.dismiss()
+            
+            parent.onImagePicked(image)
         }
         
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
