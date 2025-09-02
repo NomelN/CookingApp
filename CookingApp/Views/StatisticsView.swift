@@ -28,7 +28,7 @@ struct StatisticsView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
             }
-            .background(ColorTheme.backgroundLight.ignoresSafeArea())
+            .background(ColorTheme.backgroundLight(isDark: themeManager.isDarkMode).ignoresSafeArea())
             .navigationTitle("📊 Statistiques")
             .navigationBarTitleDisplayMode(.large)
             .onAppear {
@@ -45,6 +45,7 @@ struct StatisticsView: View {
 // MARK: - Header avec sélection de période
 struct HeaderStatsView: View {
     @Binding var selectedPeriod: TimePeriod
+    @EnvironmentObject private var themeManager: ThemeManager
     
     var body: some View {
         VStack(spacing: 20) {
@@ -53,11 +54,11 @@ struct HeaderStatsView: View {
                     Text("Période d'analyse")
                         .font(.title2)
                         .fontWeight(.bold)
-                        .foregroundColor(ColorTheme.primaryText)
+                        .foregroundColor(ColorTheme.primaryText(isDark: themeManager.isDarkMode))
                     
                     Text("Sélectionnez la période pour voir vos statistiques")
                         .font(.subheadline)
-                        .foregroundColor(ColorTheme.secondaryText)
+                        .foregroundColor(ColorTheme.secondaryText(isDark: themeManager.isDarkMode))
                 }
                 Spacer()
             }
@@ -77,11 +78,11 @@ struct HeaderStatsView: View {
                                 
                                 Text(period.displayName)
                                     .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(selectedPeriod == period ? .white : ColorTheme.primaryText)
+                                    .foregroundColor(selectedPeriod == period ? .white : ColorTheme.primaryText(isDark: themeManager.isDarkMode))
                                 
                                 Text(period.subtitle)
                                     .font(.system(size: 11, weight: .medium))
-                                    .foregroundColor(selectedPeriod == period ? .white.opacity(0.8) : ColorTheme.secondaryText)
+                                    .foregroundColor(selectedPeriod == period ? .white.opacity(0.8) : ColorTheme.secondaryText(isDark: themeManager.isDarkMode))
                             }
                             .frame(width: 90, height: 80)
                             .background(
@@ -95,9 +96,9 @@ struct HeaderStatsView: View {
             }
         }
         .padding(20)
-        .background(ColorTheme.cardBackground)
+        .background(ColorTheme.cardBackground(isDark: themeManager.isDarkMode))
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: ColorTheme.shadowColor.opacity(0.1), radius: 8, x: 0, y: 4)
+        .shadow(color: ColorTheme.shadowColor(isDark: themeManager.isDarkMode).opacity(0.1), radius: 8, x: 0, y: 4)
     }
     
     private func periodBackgroundView(for period: TimePeriod) -> some View {
@@ -105,7 +106,7 @@ struct HeaderStatsView: View {
         let shadowColor = isSelected ? ColorTheme.primaryGreen.opacity(0.3) : Color.clear
         
         return RoundedRectangle(cornerRadius: 25)
-            .fill(isSelected ? ColorTheme.primaryGradient : LinearGradient(colors: [ColorTheme.cardBackground], startPoint: .leading, endPoint: .trailing))
+            .fill(isSelected ? ColorTheme.primaryGradient : LinearGradient(colors: [ColorTheme.cardBackground(isDark: themeManager.isDarkMode)], startPoint: .leading, endPoint: .trailing))
             .shadow(color: shadowColor, radius: 8, x: 0, y: 4)
     }
 }
@@ -133,7 +134,7 @@ struct MainStatsCardsView: View {
                 title: "Consommés",
                 value: "\(stats.consumedProducts)",
                 icon: "checkmark.circle.fill",
-                color: ColorTheme.navyBlue,
+                color: ColorTheme.primaryBlue,
                 trend: stats.consumedProducts > 0 ? .up : .none
             )
             
@@ -163,6 +164,7 @@ struct StatCard: View {
     let icon: String
     let color: Color
     let trend: TrendDirection
+    @EnvironmentObject private var themeManager: ThemeManager
     
     var body: some View {
         VStack(spacing: 16) {
@@ -182,7 +184,7 @@ struct StatCard: View {
                     
                     Text(title)
                         .font(.caption)
-                        .foregroundColor(ColorTheme.secondaryText)
+                        .foregroundColor(ColorTheme.secondaryText(isDark: themeManager.isDarkMode))
                         .fontWeight(.medium)
                 }
                 
@@ -199,12 +201,12 @@ struct StatCard: View {
         }
         .padding(20)
         .background(cardBackground)
-        .shadow(color: ColorTheme.shadowColor.opacity(0.1), radius: 8, x: 0, y: 4)
+        .shadow(color: ColorTheme.shadowColor(isDark: themeManager.isDarkMode).opacity(0.1), radius: 8, x: 0, y: 4)
     }
     
     private var cardBackground: some View {
         RoundedRectangle(cornerRadius: 20)
-            .fill(ColorTheme.cardBackground)
+            .fill(ColorTheme.cardBackground(isDark: themeManager.isDarkMode))
             .overlay(
                 RoundedRectangle(cornerRadius: 20)
                     .stroke(color.opacity(0.2), lineWidth: 1)
@@ -233,6 +235,7 @@ struct StatCard: View {
 // MARK: - Graphique d'expiration
 struct ExpirationChartView: View {
     let stats: ProductStatistics
+    @EnvironmentObject private var themeManager: ThemeManager
     
     var body: some View {
         VStack(spacing: 16) {
@@ -248,7 +251,7 @@ struct ExpirationChartView: View {
                     // Graphique en anneau
                     ZStack {
                         Circle()
-                            .stroke(ColorTheme.navyBlue.opacity(0.1), lineWidth: 15)
+                            .stroke(ColorTheme.borderLight(isDark: themeManager.isDarkMode), lineWidth: 15)
                             .frame(width: 120, height: 120)
                         
                         // Segments colorés
@@ -264,10 +267,10 @@ struct ExpirationChartView: View {
                             Text("\(stats.activeProducts)")
                                 .font(.title)
                                 .fontWeight(.bold)
-                                .foregroundColor(ColorTheme.primaryText)
+                                .foregroundColor(ColorTheme.primaryText(isDark: themeManager.isDarkMode))
                             Text("Actifs")
                                 .font(.caption)
-                                .foregroundColor(ColorTheme.secondaryText)
+                                .foregroundColor(ColorTheme.secondaryText(isDark: themeManager.isDarkMode))
                         }
                     }
                     
@@ -295,7 +298,7 @@ struct ExpirationChartView: View {
                         )
                         
                         ChartLegendItem(
-                            color: ColorTheme.navyBlue,
+                            color: ColorTheme.primaryBlue,
                             label: "Consommés",
                             value: stats.consumedProducts,
                             total: stats.totalProducts
@@ -308,19 +311,19 @@ struct ExpirationChartView: View {
                 VStack(spacing: 12) {
                     Image(systemName: "chart.pie.fill")
                         .font(.system(size: 40))
-                        .foregroundColor(ColorTheme.secondaryText.opacity(0.5))
+                        .foregroundColor(ColorTheme.secondaryText(isDark: themeManager.isDarkMode).opacity(0.5))
                     
                     Text("Aucune donnée disponible")
                         .font(.subheadline)
-                        .foregroundColor(ColorTheme.secondaryText)
+                        .foregroundColor(ColorTheme.secondaryText(isDark: themeManager.isDarkMode))
                 }
                 .padding(40)
             }
         }
         .padding(20)
-        .background(ColorTheme.cardBackground)
+        .background(ColorTheme.cardBackground(isDark: themeManager.isDarkMode))
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: ColorTheme.shadowColor.opacity(0.1), radius: 8, x: 0, y: 4)
+        .shadow(color: ColorTheme.shadowColor(isDark: themeManager.isDarkMode).opacity(0.1), radius: 8, x: 0, y: 4)
     }
     
     private var chartData: [ChartSegment] {
@@ -334,7 +337,7 @@ struct ExpirationChartView: View {
             (stats.freshProducts, ColorTheme.freshGreen),
             (stats.expiringProducts, ColorTheme.warningYellow),
             (stats.expiredProducts, ColorTheme.expiredRed),
-            (stats.consumedProducts, ColorTheme.navyBlue)
+            (stats.consumedProducts, ColorTheme.primaryBlue)
         ]
         
         for (value, color) in values {
@@ -378,6 +381,7 @@ struct ChartLegendItem: View {
     let label: String
     let value: Int
     let total: Int
+    @EnvironmentObject private var themeManager: ThemeManager
     
     var body: some View {
         HStack(spacing: 8) {
@@ -408,6 +412,7 @@ struct ChartLegendItem: View {
 struct DetailedStatsView: View {
     let stats: ProductStatistics
     let consumedProducts: [Product]
+    @EnvironmentObject private var themeManager: ThemeManager
     
     var body: some View {
         VStack(spacing: 16) {
@@ -430,7 +435,7 @@ struct DetailedStatsView: View {
                     icon: "calendar.badge.clock",
                     label: "Durée moyenne de conservation",
                     value: "\(averageShelfLife) jours",
-                    color: ColorTheme.navyBlue
+                    color: ColorTheme.primaryBlue
                 )
                 
                 DetailRow(
@@ -442,9 +447,9 @@ struct DetailedStatsView: View {
             }
         }
         .padding(20)
-        .background(ColorTheme.cardBackground)
+        .background(ColorTheme.cardBackground(isDark: themeManager.isDarkMode))
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: ColorTheme.shadowColor.opacity(0.1), radius: 8, x: 0, y: 4)
+        .shadow(color: ColorTheme.shadowColor(isDark: themeManager.isDarkMode).opacity(0.1), radius: 8, x: 0, y: 4)
     }
     
     private var consumptionRate: Int {
@@ -478,6 +483,7 @@ struct DetailRow: View {
     let label: String
     let value: String
     let color: Color
+    @EnvironmentObject private var themeManager: ThemeManager
     
     var body: some View {
         HStack {
@@ -505,6 +511,7 @@ struct DetailRow: View {
 // MARK: - Produits récemment consommés
 struct RecentlyConsumedView: View {
     let consumedProducts: [Product]
+    @EnvironmentObject private var themeManager: ThemeManager
     
     var body: some View {
         VStack(spacing: 16) {
@@ -519,11 +526,11 @@ struct RecentlyConsumedView: View {
                 VStack(spacing: 12) {
                     Image(systemName: "tray")
                         .font(.system(size: 40))
-                        .foregroundColor(ColorTheme.secondaryText.opacity(0.5))
+                        .foregroundColor(ColorTheme.secondaryText(isDark: themeManager.isDarkMode).opacity(0.5))
                     
                     Text("Aucun produit consommé récemment")
                         .font(.subheadline)
-                        .foregroundColor(ColorTheme.secondaryText)
+                        .foregroundColor(ColorTheme.secondaryText(isDark: themeManager.isDarkMode))
                 }
                 .padding(40)
             } else {
@@ -535,9 +542,9 @@ struct RecentlyConsumedView: View {
             }
         }
         .padding(20)
-        .background(ColorTheme.cardBackground)
+        .background(ColorTheme.cardBackground(isDark: themeManager.isDarkMode))
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: ColorTheme.shadowColor.opacity(0.1), radius: 8, x: 0, y: 4)
+        .shadow(color: ColorTheme.shadowColor(isDark: themeManager.isDarkMode).opacity(0.1), radius: 8, x: 0, y: 4)
     }
     
     private var recentProducts: [Product] {
@@ -547,6 +554,7 @@ struct RecentlyConsumedView: View {
 
 struct ConsumedProductRow: View {
     let product: Product
+    @EnvironmentObject private var themeManager: ThemeManager
     
     var body: some View {
         HStack {
