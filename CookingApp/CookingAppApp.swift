@@ -10,15 +10,19 @@ import SwiftUI
 @main
 struct CookingAppApp: App {
     let persistenceController = PersistenceController.shared
+    @StateObject private var themeManager = ThemeManager.shared
     
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
+                .environmentObject(themeManager)
+                .preferredColorScheme(themeManager.isDarkMode ? .dark : .light)
                 .onAppear {
                     NotificationManager.shared.requestPermission()
-                    print("🚀 App démarrée - caméra réactivée")
+                    print("🚀 App démarrée - thème: \(themeManager.currentTheme.displayName)")
                 }
+                .animation(.easeInOut(duration: 0.3), value: themeManager.currentTheme)
         }
     }
 }

@@ -3,6 +3,7 @@ import PhotosUI
 
 struct AddProductView: View {
     @ObservedObject var viewModel: ProductsViewModel
+    @EnvironmentObject private var themeManager: ThemeManager
     @Environment(\.dismiss) private var dismiss
     
     @State private var productName = ""
@@ -18,19 +19,31 @@ struct AddProductView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                ColorTheme.backgroundGray
+                ColorTheme.backgroundLight
                     .ignoresSafeArea()
                 
                 ScrollView {
                     VStack(spacing: 24) {
                         // Section informations
                         VStack(spacing: 20) {
-                            HStack {
-                                Image(systemName: "info.circle.fill")
-                                    .foregroundColor(ColorTheme.primaryGreen)
-                                Text("Informations du produit")
-                                    .font(.headline)
-                                    .foregroundColor(ColorTheme.primaryText)
+                            HStack(spacing: 12) {
+                                ZStack {
+                                    Circle()
+                                        .fill(ColorTheme.primaryBlue.opacity(0.15))
+                                        .frame(width: 32, height: 32)
+                                    Image(systemName: "info.circle.fill")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor(ColorTheme.primaryBlue)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Informations du produit")
+                                        .font(.system(size: 18, weight: .semibold))
+                                        .foregroundColor(ColorTheme.primaryText)
+                                    Text("Renseignez les détails de votre produit")
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundColor(ColorTheme.secondaryText)
+                                }
                                 Spacer()
                             }
                             
@@ -49,12 +62,24 @@ struct AddProductView: View {
                         
                         // Section photo
                         VStack(spacing: 20) {
-                            HStack {
-                                Image(systemName: "camera.fill")
-                                    .foregroundColor(ColorTheme.secondaryBlue)
-                                Text("Photo du produit")
-                                    .font(.headline)
-                                    .foregroundColor(ColorTheme.primaryText)
+                            HStack(spacing: 12) {
+                                ZStack {
+                                    Circle()
+                                        .fill(ColorTheme.primaryGreen.opacity(0.15))
+                                        .frame(width: 32, height: 32)
+                                    Image(systemName: "camera.fill")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor(ColorTheme.primaryGreen)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Photo du produit")
+                                        .font(.system(size: 18, weight: .semibold))
+                                        .foregroundColor(ColorTheme.primaryText)
+                                    Text("Prenez une photo pour l'analyse automatique")
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundColor(ColorTheme.secondaryText)
+                                }
                                 Spacer()
                             }
                             VStack(spacing: 16) {
@@ -107,6 +132,8 @@ struct AddProductView: View {
             }
             .navigationTitle("🆕 Nouveau produit")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(ColorTheme.cardBackground, for: .navigationBar)
+            .foregroundStyle(ColorTheme.primaryBlue)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Annuler") {
@@ -140,6 +167,9 @@ struct AddProductView: View {
                     }
                 }
             }
+        }
+        .onChange(of: themeManager.currentTheme) { _ in
+            // Force une mise à jour de l'interface lors du changement de thème
         }
     }
     
@@ -251,16 +281,29 @@ struct CustomTextField: View {
                 .fontWeight(.medium)
                 .foregroundColor(ColorTheme.primaryText)
             
-            TextField(placeholder, text: $text, axis: .vertical)
-                .textFieldStyle(PlainTextFieldStyle())
-                .padding(16)
-                .background(ColorTheme.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(ColorTheme.primaryGreen.opacity(0.3), lineWidth: 1)
-                )
-                .autocorrectionDisabled()
+            ZStack(alignment: .leading) {
+                if text.isEmpty {
+                    Text(placeholder)
+                        .foregroundColor(ColorTheme.placeholderText)
+                        .font(.system(size: 16, weight: .medium).italic())
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 18)
+                }
+                
+                TextField("", text: $text, axis: .vertical)
+                    .textFieldStyle(PlainTextFieldStyle())
+                    .foregroundColor(ColorTheme.primaryText)
+                    .font(.system(size: 16, weight: .medium))
+                    .padding(18)
+                    .autocorrectionDisabled()
+            }
+            .background(ColorTheme.fieldBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(ColorTheme.borderLight, lineWidth: 1.5)
+            )
+            .shadow(color: ColorTheme.shadowColor, radius: 2, x: 0, y: 1)
         }
     }
 }
@@ -275,11 +318,23 @@ struct CustomDatePicker: View {
                 .fontWeight(.medium)
                 .foregroundColor(ColorTheme.primaryText)
             
-            DatePicker("", selection: $selection, displayedComponents: .date)
-                .datePickerStyle(CompactDatePickerStyle())
-                .padding(16)
-                .background(ColorTheme.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+            HStack {
+                DatePicker("", selection: $selection, displayedComponents: .date)
+                    .datePickerStyle(CompactDatePickerStyle())
+                    .foregroundColor(ColorTheme.primaryText)
+                    .labelsHidden()
+                    .font(.system(size: 16, weight: .medium))
+                
+                Spacer()
+            }
+            .padding(18)
+            .background(ColorTheme.fieldBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(ColorTheme.borderLight, lineWidth: 1.5)
+            )
+            .shadow(color: ColorTheme.shadowColor, radius: 2, x: 0, y: 1)
         }
     }
 }
@@ -315,45 +370,51 @@ struct CameraButtonContent: View {
         UIImagePickerController.isSourceTypeAvailable(.camera)
     }
     
-    private var cameraBackgroundFill: AnyShapeStyle {
-        if cameraAvailable {
-            return AnyShapeStyle(ColorTheme.primaryGradient)
-        } else {
-            return AnyShapeStyle(Color.gray.opacity(0.3))
-        }
-    }
-    
     var body: some View {
-        HStack {
+        HStack(spacing: 8) {
             Image(systemName: "camera.fill")
+                .font(.system(size: 16, weight: .semibold))
             Text("Appareil photo")
+                .fontWeight(.semibold)
         }
         .font(.subheadline)
-        .fontWeight(.medium)
         .foregroundColor(.white)
-        .padding(.vertical, 12)
-        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+        .padding(.horizontal, 24)
         .background(
-            RoundedRectangle(cornerRadius: 25)
-                .fill(cameraBackgroundFill)
+            RoundedRectangle(cornerRadius: 16)
+                .fill(
+                    cameraAvailable ? 
+                    ColorTheme.primaryGradient : 
+                    LinearGradient(colors: [Color.gray.opacity(0.6)], startPoint: .leading, endPoint: .trailing)
+                )
+                .shadow(color: cameraAvailable ? ColorTheme.primaryBlue.opacity(0.3) : Color.clear, radius: 8, x: 0, y: 4)
         )
+        .scaleEffect(cameraAvailable ? 1.0 : 0.95)
+        .opacity(cameraAvailable ? 1.0 : 0.7)
     }
 }
 
 struct GalleryButtonContent: View {
     var body: some View {
-        HStack {
+        HStack(spacing: 8) {
             Image(systemName: "photo.fill")
+                .font(.system(size: 16, weight: .semibold))
             Text("Galerie")
+                .fontWeight(.semibold)
         }
         .font(.subheadline)
-        .fontWeight(.medium)
-        .foregroundColor(ColorTheme.secondaryBlue)
-        .padding(.vertical, 12)
-        .padding(.horizontal, 20)
+        .foregroundColor(ColorTheme.primaryBlue)
+        .padding(.vertical, 14)
+        .padding(.horizontal, 24)
         .background(
-            RoundedRectangle(cornerRadius: 25)
-                .stroke(ColorTheme.secondaryBlue, lineWidth: 2)
+            RoundedRectangle(cornerRadius: 16)
+                .fill(ColorTheme.sectionBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(ColorTheme.primaryBlue.opacity(0.3), lineWidth: 1.5)
+                )
+                .shadow(color: ColorTheme.shadowColor, radius: 4, x: 0, y: 2)
         )
     }
 }
@@ -393,7 +454,7 @@ struct CameraWarningView: View {
 
 struct EmptyImagePlaceholderView: View {
     private let placeholderGradient = LinearGradient(
-        colors: [ColorTheme.primaryGreen.opacity(0.1), ColorTheme.secondaryBlue.opacity(0.1)],
+        colors: [ColorTheme.primaryBlue.opacity(0.1), ColorTheme.primaryGreen.opacity(0.1)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
@@ -406,7 +467,7 @@ struct EmptyImagePlaceholderView: View {
                 VStack(spacing: 16) {
                     Image(systemName: "camera.circle.fill")
                         .font(.system(size: 60))
-                        .foregroundColor(ColorTheme.primaryGreen)
+                        .foregroundColor(ColorTheme.primaryBlue)
                     
                     Text("Ajouter une photo")
                         .font(.headline)
@@ -430,28 +491,30 @@ struct SaveButtonView: View {
         productName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     
-    private var buttonBackground: AnyShapeStyle {
-        if isEmpty {
-            return AnyShapeStyle(Color.gray.opacity(0.3))
-        } else {
-            return AnyShapeStyle(ColorTheme.primaryGradient)
-        }
-    }
-    
     var body: some View {
         Button("Enregistrer") {
             onSave()
         }
-        .font(.subheadline)
-        .fontWeight(.semibold)
+        .font(.system(size: 16, weight: .semibold))
         .foregroundColor(.white)
-        .padding(.vertical, 8)
-        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .padding(.horizontal, 20)
         .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(buttonBackground)
+            RoundedRectangle(cornerRadius: 12)
+                .fill(
+                    isEmpty ? 
+                    LinearGradient(colors: [Color.gray.opacity(0.4)], startPoint: .leading, endPoint: .trailing) :
+                    ColorTheme.successGradient
+                )
+                .shadow(
+                    color: isEmpty ? Color.clear : ColorTheme.primaryGreen.opacity(0.4), 
+                    radius: 6, x: 0, y: 3
+                )
         )
+        .scaleEffect(isEmpty ? 0.95 : 1.0)
+        .opacity(isEmpty ? 0.6 : 1.0)
         .disabled(isEmpty)
+        .animation(.easeInOut(duration: 0.2), value: isEmpty)
     }
 }
 
