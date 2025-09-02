@@ -27,30 +27,46 @@ class NotificationManager: ObservableObject {
     }
     
     func scheduleNotification(for product: Product, daysBeforeExpiration: Int = 1) {
+        guard hasPermission else {
+            print("Notification permission not granted")
+            return
+        }
+        
         guard let expirationDate = product.expirationDate,
-              let productName = product.name else { return }
+              let productName = product.name else { 
+            print("Missing expiration date or product name")
+            return 
+        }
         
-        let notificationDate = Calendar.current.date(byAdding: .day, value: -daysBeforeExpiration, to: expirationDate)
+        // Calculer la date de notification (à 10h00 pour être plus visible)
+        var notificationDateComponents = Calendar.current.dateComponents([.year, .month, .day], from: expirationDate)
+        notificationDateComponents.day! -= daysBeforeExpiration
+        notificationDateComponents.hour = 10
+        notificationDateComponents.minute = 0
         
-        guard let notificationDate = notificationDate,
-              notificationDate > Date() else { return }
+        guard let notificationDate = Calendar.current.date(from: notificationDateComponents),
+              notificationDate > Date() else { 
+            print("Notification date is in the past: \(String(describing: Calendar.current.date(from: notificationDateComponents)))")
+            return 
+        }
         
         let content = UNMutableNotificationContent()
-        content.title = "Produit bientôt expiré"
+        content.title = "🍎 Attention à vos produits !"
         
         if daysBeforeExpiration == 0 {
-            content.body = "\(productName) expire aujourd'hui !"
+            content.body = "⚠️ \(productName) expire aujourd'hui !"
         } else if daysBeforeExpiration == 1 {
-            content.body = "\(productName) expire demain."
+            content.body = "🟡 \(productName) expire demain."
         } else {
-            content.body = "\(productName) expire dans \(daysBeforeExpiration) jours."
+            content.body = "🟠 \(productName) expire dans \(daysBeforeExpiration) jours."
         }
         
         content.sound = .default
-        content.badge = 1
+        content.badge = NSNumber(value: 1)
+        content.categoryIdentifier = "EXPIRATION_REMINDER"
         
         let trigger = UNCalendarNotificationTrigger(
-            dateMatching: Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: notificationDate),
+            dateMatching: notificationDateComponents,
             repeats: false
         )
         
@@ -59,7 +75,10 @@ class NotificationManager: ObservableObject {
         
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
-                print("Error scheduling notification: \(error)")
+                print("❌ Error scheduling notification: \(error)")
+            } else {
+                print("✅ Notification scheduled for \(productName) - \(daysBeforeExpiration) days before")
+                print("   Notification date: \(notificationDate)")
             }
         }
     }
@@ -101,6 +120,47 @@ class NotificationManager: ObservableObject {
     
     func removeAllNotifications() {
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+    }
+    
+    // Méthode de debug pour lister toutes les notifications programmées
+    func listPendingNotifications() {
+        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
+            print("📋 Pending notifications: \(requests.count)")
+            for request in requests {
+                print("   - ID: \(request.identifier)")
+                print("     Title: \(request.content.title)")
+                print("     Body: \(request.content.body)")
+                if let trigger = request.trigger as? UNCalendarNotificationTrigger,
+                   let nextTriggerDate = trigger.nextTriggerDate() {
+                    print("     Trigger date: \(nextTriggerDate)")
+                }
+                print("   ---")
+            }
+        }
+    }
+    
+    // Méthode pour tester les notifications immédiatement
+    func sendTestNotification() {
+        guard hasPermission else {
+            print("No notification permission")
+            return
+        }
+        
+        let content = UNMutableNotificationContent()
+        content.title = "🧪 Test CookingApp"
+        content.body = "Les notifications fonctionnent correctement !"
+        content.sound = .default
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
+        let request = UNNotificationRequest(identifier: "test_notification", content: content, trigger: trigger)
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("❌ Test notification error: \(error)")
+            } else {
+                print("✅ Test notification sent!")
+            }
+        }
     }
 }
 

@@ -1,13 +1,17 @@
 import Foundation
 import CoreData
 import SwiftUI
+import Combine
 
 class ProductsViewModel: ObservableObject {
     private let persistenceController = PersistenceController.shared
     private let notificationManager = NotificationManager.shared
+    private var refreshTimer: Timer?
+    private var cancellables = Set<AnyCancellable>()
     
     @Published var products: [Product] = []
     @Published var searchText = ""
+    @Published var lastRefresh = Date()
     
     var filteredProducts: [Product] {
         if searchText.isEmpty {
@@ -32,6 +36,56 @@ class ProductsViewModel: ObservableObject {
     
     init() {
         fetchProducts()
+        startAutoRefresh()
+        
+        // Observer pour rafraîchir quand l'app revient au premier plan
+        NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)
+            .sink { _ in
+                DispatchQueue.main.async {
+                    self.lastRefresh = Date()
+                    self.objectWillChange.send()
+                    print("🔄 App became active: refreshing expiration calculations")
+                }
+            }
+            .store(in: &cancellables)
+    }
+    
+    deinit {
+        stopAutoRefresh()
+    }
+    
+    private func startAutoRefresh() {
+        // Rafraîchir toutes les heures pour recalculer les jours restants
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { _ in
+            DispatchQueue.main.async {
+                self.lastRefresh = Date()
+                self.objectWillChange.send()
+            }
+        }
+        
+        // Rafraîchir à minuit pour le changement de jour
+        let midnight = Calendar.current.startOfDay(for: Date().addingTimeInterval(86400))
+        let timeUntilMidnight = midnight.timeIntervalSince(Date())
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + timeUntilMidnight) {
+            self.startDailyRefresh()
+        }
+    }
+    
+    private func startDailyRefresh() {
+        // Timer quotidien à minuit
+        Timer.scheduledTimer(withTimeInterval: 86400, repeats: true) { _ in
+            DispatchQueue.main.async {
+                self.lastRefresh = Date()
+                self.objectWillChange.send()
+                print("🔄 Daily refresh: recalculating expiration days")
+            }
+        }
+    }
+    
+    private func stopAutoRefresh() {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
     }
     
     func fetchProducts() {

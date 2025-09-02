@@ -15,6 +15,9 @@ struct CookingAppApp: App {
         WindowGroup {
             ContentView()
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
+                .onAppear {
+                    NotificationManager.shared.requestPermission()
+                }
         }
     }
 }
