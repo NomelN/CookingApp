@@ -4,6 +4,7 @@ import PhotosUI
 struct EditProductView: View {
     let product: Product
     @ObservedObject var viewModel: ProductsViewModel
+    @EnvironmentObject private var themeManager: ThemeManager
     @Environment(\.dismiss) private var dismiss
     
     @State private var productName = ""
@@ -19,12 +20,15 @@ struct EditProductView: View {
             Form {
                 Section("Informations du produit") {
                     TextField("Nom du produit", text: $productName)
+                        .foregroundColor(ColorTheme.primaryText)
                     
                     DatePicker("Date d'expiration", selection: $expirationDate, displayedComponents: .date)
                         .datePickerStyle(CompactDatePickerStyle())
+                        .foregroundColor(ColorTheme.primaryText)
                     
                     TextField("Description (optionnel)", text: $productDescription, axis: .vertical)
                         .lineLimit(3)
+                        .foregroundColor(ColorTheme.primaryText)
                 }
                 
                 Section("Photo") {
@@ -104,19 +108,25 @@ struct EditProductView: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(ColorTheme.backgroundLight)
             .navigationTitle("Modifier produit")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(ColorTheme.cardBackground, for: .navigationBar)
+            .foregroundStyle(ColorTheme.primaryBlue)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Annuler") {
                         dismiss()
                     }
+                    .foregroundColor(ColorTheme.secondaryText)
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Enregistrer") {
                         saveProduct()
                     }
+                    .foregroundColor(productName.isEmpty ? ColorTheme.secondaryText : ColorTheme.primaryGreen)
                     .disabled(productName.isEmpty)
                 }
             }

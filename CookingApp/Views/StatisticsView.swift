@@ -3,6 +3,7 @@ import CoreData
 
 struct StatisticsView: View {
     @StateObject private var viewModel = StatisticsViewModel()
+    @EnvironmentObject private var themeManager: ThemeManager
     @State private var selectedPeriod: TimePeriod = .month
     
     var body: some View {
@@ -27,7 +28,7 @@ struct StatisticsView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
             }
-            .background(ColorTheme.backgroundGray.ignoresSafeArea())
+            .background(ColorTheme.backgroundLight.ignoresSafeArea())
             .navigationTitle("📊 Statistiques")
             .navigationBarTitleDisplayMode(.large)
             .onAppear {
@@ -132,7 +133,7 @@ struct MainStatsCardsView: View {
                 title: "Consommés",
                 value: "\(stats.consumedProducts)",
                 icon: "checkmark.circle.fill",
-                color: ColorTheme.secondaryBlue,
+                color: ColorTheme.navyBlue,
                 trend: stats.consumedProducts > 0 ? .up : .none
             )
             
@@ -247,7 +248,7 @@ struct ExpirationChartView: View {
                     // Graphique en anneau
                     ZStack {
                         Circle()
-                            .stroke(ColorTheme.backgroundGray.opacity(0.3), lineWidth: 15)
+                            .stroke(ColorTheme.navyBlue.opacity(0.1), lineWidth: 15)
                             .frame(width: 120, height: 120)
                         
                         // Segments colorés
@@ -294,7 +295,7 @@ struct ExpirationChartView: View {
                         )
                         
                         ChartLegendItem(
-                            color: ColorTheme.secondaryBlue,
+                            color: ColorTheme.navyBlue,
                             label: "Consommés",
                             value: stats.consumedProducts,
                             total: stats.totalProducts
@@ -333,7 +334,7 @@ struct ExpirationChartView: View {
             (stats.freshProducts, ColorTheme.freshGreen),
             (stats.expiringProducts, ColorTheme.warningYellow),
             (stats.expiredProducts, ColorTheme.expiredRed),
-            (stats.consumedProducts, ColorTheme.secondaryBlue)
+            (stats.consumedProducts, ColorTheme.navyBlue)
         ]
         
         for (value, color) in values {
@@ -429,7 +430,7 @@ struct DetailedStatsView: View {
                     icon: "calendar.badge.clock",
                     label: "Durée moyenne de conservation",
                     value: "\(averageShelfLife) jours",
-                    color: ColorTheme.secondaryBlue
+                    color: ColorTheme.navyBlue
                 )
                 
                 DetailRow(

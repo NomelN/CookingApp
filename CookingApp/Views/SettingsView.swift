@@ -2,13 +2,14 @@ import SwiftUI
 
 struct SettingsView: View {
     @StateObject private var notificationManager = NotificationManager.shared
+    @StateObject private var themeManager = ThemeManager.shared
     @State private var notificationSettings = NotificationSettings.shared
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
         NavigationView {
             ZStack {
-                ColorTheme.backgroundGray
+                ColorTheme.backgroundLight
                     .ignoresSafeArea()
                 
                 ScrollView {
@@ -96,11 +97,51 @@ struct SettingsView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 20))
                         .shadow(color: ColorTheme.shadowColor, radius: 8, x: 0, y: 4)
                         
+                        // Section Thème
+                        VStack(spacing: 20) {
+                            HStack(spacing: 12) {
+                                ZStack {
+                                    Circle()
+                                        .fill(ColorTheme.primaryPurple.opacity(0.15))
+                                        .frame(width: 32, height: 32)
+                                    Image(systemName: themeManager.currentTheme.iconName)
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor(ColorTheme.primaryPurple)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Apparence")
+                                        .font(.system(size: 18, weight: .semibold))
+                                        .foregroundColor(ColorTheme.primaryText)
+                                    Text("Choisissez votre thème préféré")
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundColor(ColorTheme.secondaryText)
+                                }
+                                Spacer()
+                            }
+                            
+                            VStack(spacing: 12) {
+                                ForEach(ThemeMode.allCases, id: \.self) { theme in
+                                    ThemeSelectionRow(
+                                        theme: theme,
+                                        isSelected: themeManager.currentTheme == theme,
+                                        onSelect: {
+                                            themeManager.setTheme(theme)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        .padding(20)
+                        .background(ColorTheme.cardBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                        .shadow(color: ColorTheme.shadowColor, radius: 8, x: 0, y: 4)
+                        
                         // Section À propos
                         VStack(spacing: 20) {
                             HStack {
                                 Image(systemName: "info.circle.fill")
-                                    .foregroundColor(ColorTheme.secondaryBlue)
+                                    .foregroundColor(ColorTheme.navyBlue)
                                 Text("À propos")
                                     .font(.headline)
                                     .foregroundColor(ColorTheme.primaryText)
@@ -181,7 +222,7 @@ struct InfoRow: View {
         HStack(spacing: 16) {
             Image(systemName: icon)
                 .font(.title3)
-                .foregroundColor(ColorTheme.secondaryBlue)
+                .foregroundColor(ColorTheme.navyBlue)
                 .frame(width: 24, height: 24)
             
             Text(title)
@@ -199,8 +240,61 @@ struct InfoRow: View {
         .padding(.horizontal, 16)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(ColorTheme.secondaryBlue.opacity(0.05))
+                .fill(ColorTheme.navyBlue.opacity(0.05))
         )
+    }
+}
+
+struct ThemeSelectionRow: View {
+    let theme: ThemeMode
+    let isSelected: Bool
+    let onSelect: () -> Void
+    
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: 16) {
+                ZStack {
+                    Circle()
+                        .fill(isSelected ? ColorTheme.primaryPurple : ColorTheme.borderLight)
+                        .frame(width: 40, height: 40)
+                    
+                    Image(systemName: theme.iconName)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(isSelected ? .white : ColorTheme.tertiaryText)
+                }
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(theme.displayName)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(ColorTheme.primaryText)
+                    
+                    Text(theme == .light ? "Interface claire et lumineuse" : "Interface sombre et moderne")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(ColorTheme.secondaryText)
+                }
+                
+                Spacer()
+                
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(ColorTheme.primaryPurple)
+                }
+            }
+            .padding(.vertical, 16)
+            .padding(.horizontal, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(isSelected ? ColorTheme.primaryPurple.opacity(0.08) : ColorTheme.sectionBackground)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(isSelected ? ColorTheme.primaryPurple.opacity(0.3) : ColorTheme.borderLight, lineWidth: isSelected ? 2 : 1)
+                    )
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+        .scaleEffect(isSelected ? 1.02 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
     }
 }
 

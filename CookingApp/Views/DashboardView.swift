@@ -8,6 +8,7 @@ struct DashboardView: View {
 
 struct MainTabView: View {
     @StateObject private var viewModel = ProductsViewModel()
+    @EnvironmentObject private var themeManager: ThemeManager
     @State private var showingAddProduct = false
     
     var body: some View {
@@ -15,7 +16,7 @@ struct MainTabView: View {
             // Onglet Produits
             NavigationView {
                 ZStack {
-                    ColorTheme.backgroundGray
+                    ColorTheme.backgroundLight
                         .ignoresSafeArea()
                     
                     VStack(spacing: 0) {
@@ -29,6 +30,8 @@ struct MainTabView: View {
                 .navigationTitle("🍎 Mes Produits")
                 .navigationBarTitleDisplayMode(.large)
                 .searchable(text: $viewModel.searchText, prompt: "Rechercher un produit")
+                .toolbarBackground(ColorTheme.cardBackground, for: .navigationBar)
+                .foregroundStyle(ColorTheme.primaryBlue)
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button(action: {
@@ -62,7 +65,7 @@ struct MainTabView: View {
                     Text("Paramètres")
                 }
         }
-        .accentColor(ColorTheme.primaryGreen)
+        .accentColor(ColorTheme.primaryBlue)
     }
 }
 
@@ -130,7 +133,7 @@ struct ProductCardView: View {
                     } else {
                         RoundedRectangle(cornerRadius: 16)
                             .fill(LinearGradient(
-                                colors: [ColorTheme.primaryGreen.opacity(0.3), ColorTheme.secondaryBlue.opacity(0.3)],
+                                colors: [ColorTheme.primaryGreen.opacity(0.3), ColorTheme.navyBlue.opacity(0.3)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             ))
@@ -211,7 +214,7 @@ struct ProductCardView: View {
                 GeometryReader { geometry in
                     ZStack(alignment: .leading) {
                         Rectangle()
-                            .fill(ColorTheme.backgroundGray.opacity(0.3))
+                            .fill(ColorTheme.navyBlue.opacity(0.1))
                             .frame(height: 3)
                         
                         Rectangle()
@@ -245,7 +248,7 @@ struct ProductCardView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
             }
-            .background(ColorTheme.backgroundGray.opacity(0.2))
+            .background(ColorTheme.navyBlue.opacity(0.02))
         }
         .background(ColorTheme.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
@@ -325,7 +328,7 @@ struct EmptyStateView: View {
                 
                 HStack(spacing: 12) {
                     Circle()
-                        .fill(ColorTheme.secondaryBlue)
+                        .fill(ColorTheme.navyBlue)
                         .frame(width: 8, height: 8)
                     Text("Recevez des rappels avant expiration")
                         .font(.subheadline)
@@ -361,13 +364,15 @@ struct AddButtonView: View {
         ZStack {
             Circle()
                 .fill(ColorTheme.primaryGradient)
-                .frame(width: 35, height: 35)
+                .frame(width: 36, height: 36)
+                .shadow(color: ColorTheme.primaryBlue.opacity(0.4), radius: 6, x: 0, y: 3)
             
             Image(systemName: "plus")
-                .font(.title2)
+                .font(.system(size: 18, weight: .bold))
                 .foregroundColor(.white)
-                .fontWeight(.semibold)
         }
+        .scaleEffect(1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: true)
     }
 }
 
