@@ -20,6 +20,9 @@ struct MainTabView: View {
                         .ignoresSafeArea()
                     
                     VStack(spacing: 0) {
+                        // Filtre par statut
+                        ProductFilterView(viewModel: viewModel)
+                        
                         if viewModel.sortedProducts.isEmpty {
                             EmptyStateView()
                         } else {
@@ -27,7 +30,7 @@ struct MainTabView: View {
                         }
                     }
                 }
-                .navigationTitle("🍎 Mes Produits")
+                .navigationTitle("Mes Produits")
                 .navigationBarTitleDisplayMode(.large)
                 .searchable(text: $viewModel.searchText, prompt: "Rechercher un produit")
                 .toolbarBackground(ColorTheme.cardBackground(isDark: themeManager.isDarkMode), for: .navigationBar)
@@ -226,7 +229,7 @@ struct ProductCardView: View {
                             .frame(height: 3)
                         
                         Rectangle()
-                            .fill(product.statusColor(from: viewModel.lastRefresh).opacity(0.8))
+                            .fill(progressBarColor.opacity(0.8))
                             .frame(width: max(0, geometry.size.width * progressPercentage), height: 3)
                     }
                 }
@@ -276,13 +279,47 @@ struct ProductCardView: View {
     }
     
     private var progressPercentage: Double {
-        guard let expirationDate = product.expirationDate,
-              let createdAt = product.createdAt else { return 0.0 }
+        let daysRemaining = product.daysUntilExpiration(from: viewModel.lastRefresh)
+        let status = product.expirationStatus(from: viewModel.lastRefresh)
         
-        let totalDays = Calendar.current.dateComponents([.day], from: createdAt, to: expirationDate).day ?? 1
-        let remainingDays = max(0, product.daysUntilExpiration(from: viewModel.lastRefresh))
+        // Si expiré ou expire aujourd'hui : jauge complète (100%)
+        if daysRemaining <= 0 {
+            return 1.0
+        }
         
-        return totalDays > 0 ? Double(totalDays - remainingDays) / Double(totalDays) : 1.0
+        let progress: Double
+        
+        // Logique simple selon les états
+        switch status {
+        case .expired:
+            progress = 1.0 // 100% - rouge
+        case .critical: // 1-3 jours
+            progress = 0.8 + (Double(3 - daysRemaining) * 0.2 / 3.0) // 80% à 100%
+        case .warning: // 4-7 jours  
+            progress = 0.5 + (Double(7 - daysRemaining) * 0.3 / 4.0) // 50% à 80%
+        case .good: // >7 jours
+            if daysRemaining > 30 {
+                progress = 0.0 // Pas de progression pour produits très frais
+            } else {
+                progress = Double(30 - daysRemaining) * 0.5 / 23.0 // 0% à 50%
+            }
+        }
+        
+        return max(0.0, min(1.0, progress))
+    }
+    
+    private var progressBarColor: Color {
+        let currentStatus = product.expirationStatus(from: viewModel.lastRefresh)
+        switch currentStatus {
+        case .good:
+            return ColorTheme.freshGreen
+        case .warning:
+            return ColorTheme.warningYellow
+        case .critical:
+            return ColorTheme.criticalOrange
+        case .expired:
+            return ColorTheme.expiredRed
+        }
     }
     
     private let dateFormatter: DateFormatter = {
@@ -366,6 +403,91 @@ struct EmptyStateView: View {
             .padding(.horizontal, 32)
         }
         .padding(.vertical, 40)
+    }
+}
+
+struct ProductFilterView: View {
+    @ObservedObject var viewModel: ProductsViewModel
+    @EnvironmentObject private var themeManager: ThemeManager
+    
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(ProductFilter.allCases, id: \.rawValue) { filter in
+                    FilterButton(
+                        filter: filter,
+                        isSelected: viewModel.selectedFilter == filter,
+                        count: countForFilter(filter)
+                    ) {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            viewModel.selectedFilter = filter
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+        .padding(.vertical, 12)
+    }
+    
+    private func countForFilter(_ filter: ProductFilter) -> Int {
+        let baseProducts = viewModel.products.filter { !$0.isUsed }
+        return baseProducts.filter { product in
+            filter.matches(product, from: viewModel.lastRefresh)
+        }.count
+    }
+}
+
+struct FilterButton: View {
+    let filter: ProductFilter
+    let isSelected: Bool
+    let count: Int
+    let action: () -> Void
+    @EnvironmentObject private var themeManager: ThemeManager
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: filter.systemIcon)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(isSelected ? .white : filterColor)
+                
+                Text(filter.rawValue)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(isSelected ? .white : ColorTheme.primaryText(isDark: themeManager.isDarkMode))
+                
+                if count > 0 {
+                    Text("(\(count))")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(isSelected ? .white.opacity(0.8) : ColorTheme.secondaryText(isDark: themeManager.isDarkMode))
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(isSelected ? filterColor : ColorTheme.cardBackground(isDark: themeManager.isDarkMode))
+                    .shadow(color: ColorTheme.shadowColor(isDark: themeManager.isDarkMode).opacity(0.1), radius: 4, x: 0, y: 2)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(isSelected ? Color.clear : ColorTheme.borderLight(isDark: themeManager.isDarkMode), lineWidth: 1)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
+    private var filterColor: Color {
+        switch filter {
+        case .all:
+            return ColorTheme.primaryBlue
+        case .expired:
+            return ColorTheme.expiredRed
+        case .expiringSoon:
+            return ColorTheme.criticalOrange
+        case .fresh:
+            return ColorTheme.freshGreen
+        }
     }
 }
 

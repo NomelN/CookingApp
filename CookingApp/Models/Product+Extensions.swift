@@ -79,3 +79,38 @@ enum ExpirationStatus {
         }
     }
 }
+
+enum ProductFilter: String, CaseIterable {
+    case all = "Tous"
+    case expired = "Expirés"
+    case expiringSoon = "Expire bientôt"
+    case fresh = "Frais"
+    
+    var systemIcon: String {
+        switch self {
+        case .all:
+            return "basket.fill"
+        case .expired:
+            return "exclamationmark.triangle.fill"
+        case .expiringSoon:
+            return "clock.fill"
+        case .fresh:
+            return "checkmark.circle.fill"
+        }
+    }
+    
+    func matches(_ product: Product, from currentDate: Date) -> Bool {
+        let status = product.expirationStatus(from: currentDate)
+        
+        switch self {
+        case .all:
+            return true
+        case .expired:
+            return status == .expired
+        case .expiringSoon:
+            return status == .critical || status == .warning
+        case .fresh:
+            return status == .good
+        }
+    }
+}

@@ -12,14 +12,22 @@ class ProductsViewModel: ObservableObject {
     @Published var products: [Product] = []
     @Published var searchText = ""
     @Published var lastRefresh = Date()
+    @Published var selectedFilter: ProductFilter = .all
     
     var filteredProducts: [Product] {
+        let baseProducts = products.filter { !$0.isUsed }
+        
+        // Appliquer le filtre par statut
+        let statusFilteredProducts = baseProducts.filter { product in
+            selectedFilter.matches(product, from: lastRefresh)
+        }
+        
+        // Appliquer le filtre de recherche
         if searchText.isEmpty {
-            return products.filter { !$0.isUsed }
+            return statusFilteredProducts
         } else {
-            return products.filter { product in
-                !product.isUsed && 
-                (product.name?.localizedCaseInsensitiveContains(searchText) ?? false)
+            return statusFilteredProducts.filter { product in
+                product.name?.localizedCaseInsensitiveContains(searchText) ?? false
             }
         }
     }
