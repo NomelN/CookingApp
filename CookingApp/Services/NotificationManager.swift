@@ -83,7 +83,20 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         // Vérifier si la date de notification est dans le futur
         let now = Date()
         if finalNotificationDate <= now {
-            return
+            // Si la date est passée, programmer pour demain à 9h si c'est une notification d'expiration
+            if daysBeforeExpiration <= 1 {
+                var tomorrowComponents = Calendar.current.dateComponents([.year, .month, .day], from: now.addingTimeInterval(86400))
+                tomorrowComponents.hour = 9
+                tomorrowComponents.minute = 0
+                tomorrowComponents.timeZone = TimeZone.current
+                
+                guard let tomorrowDate = Calendar.current.date(from: tomorrowComponents) else {
+                    return
+                }
+                notificationDateComponents = tomorrowComponents
+            } else {
+                return // Ignorer les notifications trop anciennes (7j, 3j)
+            }
         }
         
         let content = UNMutableNotificationContent()
@@ -100,8 +113,8 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         content.sound = .default
         content.categoryIdentifier = "EXPIRATION_REMINDER"
         
-        // Calculer le badge basé sur les notifications programmées pour aujourd'hui et les prochains jours
-        calculateBadgeForNotification(content: content, currentDate: Date())
+        // Le badge sera géré automatiquement par updateAppBadgeCount()
+        content.badge = NSNumber(value: 0) // Ne pas affecter le badge ici
         
         let trigger = UNCalendarNotificationTrigger(
             dateMatching: notificationDateComponents,
@@ -111,7 +124,57 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         let identifier = "\(product.id?.uuidString ?? UUID().uuidString)_\(daysBeforeExpiration)"
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
         
-        UNUserNotificationCenter.current().add(request) { _ in }
+        UNUserNotificationCenter.current().add(request) { _ in
+            // Mettre à jour le badge après ajout
+            DispatchQueue.main.async {
+                self.updateAppBadgeCount()
+            }
+        }
+    }
+    
+    func sendImmediateNotification(for product: Product, daysUntilExpiration: Int) {
+        print("🔔 Envoi notification immédiate pour: \(product.name ?? "Produit inconnu"), expire dans \(daysUntilExpiration) jour(s)")
+        
+        guard hasPermission else { 
+            print("❌ Pas de permission pour les notifications")
+            return 
+        }
+        guard let productName = product.name else { 
+            print("❌ Nom du produit manquant")
+            return 
+        }
+        
+        let content = UNMutableNotificationContent()
+        content.title = "🍎 Attention à vos produits !"
+        
+        if daysUntilExpiration == 0 {
+            content.body = "⚠️ \(productName) expire aujourd'hui !"
+        } else if daysUntilExpiration == 1 {
+            content.body = "🟡 \(productName) expire demain !"
+        } else {
+            content.body = "🟠 \(productName) expire bientôt !"
+        }
+        
+        content.sound = .default
+        content.categoryIdentifier = "EXPIRATION_REMINDER"
+        
+        // Notification immédiate (dans 1 seconde)
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let identifier = "\(product.id?.uuidString ?? UUID().uuidString)_immediate"
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("❌ Erreur notification immédiate: \(error)")
+            } else {
+                print("✅ Notification immédiate programmée avec succès")
+            }
+            
+            // Mettre à jour le badge
+            DispatchQueue.main.async {
+                self.updateAppBadgeCount()
+            }
+        }
     }
     
     func scheduleAllNotifications(for product: Product, settings: NotificationSettings) {
@@ -119,6 +182,17 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         
         guard !product.isUsed else { return }
         
+        // Vérifier si le produit nécessite une notification immédiate
+        let daysUntilExpiration = product.daysUntilExpiration
+        print("📅 Produit '\(product.name ?? "inconnu")' expire dans \(daysUntilExpiration) jour(s)")
+        
+        if daysUntilExpiration <= 1 && daysUntilExpiration >= 0 {
+            // Produit critique : notification immédiate + programmation future
+            print("⚡ Déclenchement notification immédiate")
+            sendImmediateNotification(for: product, daysUntilExpiration: daysUntilExpiration)
+        }
+        
+        // Programmer les notifications futures normalement
         if settings.sevenDaysBefore {
             scheduleNotification(for: product, daysBeforeExpiration: 7)
         }
@@ -134,6 +208,11 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         if settings.expirationDay {
             scheduleNotification(for: product, daysBeforeExpiration: 0)
         }
+        
+        // Debug : afficher toutes les notifications programmées
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.debugNotifications()
+        }
     }
     
     func removeNotifications(for product: Product) {
@@ -143,7 +222,8 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
             "\(productId)_7",
             "\(productId)_3",
             "\(productId)_1",
-            "\(productId)_0"
+            "\(productId)_0",
+            "\(productId)_immediate"
         ]
         
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: identifiers)
@@ -164,14 +244,9 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
     func userNotificationCenter(_ center: UNUserNotificationCenter, 
                                willPresent notification: UNNotification, 
                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        // Incrémenter le badge quand une notification arrive
-        DispatchQueue.main.async {
-            let currentBadge = UIApplication.shared.applicationIconBadgeNumber
-            UIApplication.shared.applicationIconBadgeNumber = currentBadge + 1
-        }
-        
-        // Afficher la notification même en premier plan avec son, alerte et badge
-        completionHandler([.alert, .sound, .badge])
+        // Afficher la notification même en premier plan avec son et alerte
+        // Le badge est géré par updateAppBadgeCount()
+        completionHandler([.alert, .sound])
     }
     
     func userNotificationCenter(_ center: UNUserNotificationCenter, 
@@ -197,22 +272,7 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
     
     // MARK: - Badge Management
     
-    private func calculateBadgeForNotification(content: UNMutableNotificationContent, currentDate: Date) {
-        // Laisser iOS gérer l'incrémentation automatique avec la valeur 1
-        content.badge = NSNumber(value: 1)
-    }
-    
-    private func calculateAndSetBadgeCount(for content: UNMutableNotificationContent) {
-        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
-            // Compter les notifications uniques (par produit)
-            let uniqueProductIds = Set(requests.compactMap { request in
-                request.identifier.components(separatedBy: "_").first
-            })
-            
-            let badgeCount = uniqueProductIds.count + 1 // +1 pour la nouvelle notification
-            content.badge = NSNumber(value: badgeCount)
-        }
-    }
+    // Ces méthodes ne sont plus utilisées - le badge est géré par updateAppBadgeCount()
     
     func clearAppBadge() {
         DispatchQueue.main.async {
@@ -231,6 +291,25 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
             
             DispatchQueue.main.async {
                 UIApplication.shared.applicationIconBadgeNumber = uniqueProductIds.count
+            }
+        }
+    }
+    
+    // Fonction de debug pour vérifier les notifications programmées
+    func debugNotifications() {
+        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
+            print("=== DEBUG NOTIFICATIONS ===")
+            print("Nombre total de notifications: \(requests.count)")
+            
+            for request in requests {
+                if let trigger = request.trigger as? UNCalendarNotificationTrigger,
+                   let triggerDate = Calendar.current.nextDate(after: Date(), matching: trigger.dateComponents, matchingPolicy: .nextTime) {
+                    print("ID: \(request.identifier)")
+                    print("Titre: \(request.content.title)")
+                    print("Corps: \(request.content.body)")
+                    print("Date programmée: \(triggerDate)")
+                    print("---")
+                }
             }
         }
     }
