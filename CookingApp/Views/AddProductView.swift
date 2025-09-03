@@ -295,7 +295,6 @@ struct CameraPickerView: UIViewControllerRepresentable {
     
     func makeUIViewController(context: Context) -> UIViewController {
         guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
-            print("❌ Camera not available")
             let errorController = UIViewController()
             DispatchQueue.main.async {
                 dismiss()
@@ -313,7 +312,6 @@ struct CameraPickerView: UIViewControllerRepresentable {
         // Ajout de gestion d'erreur pour éviter les crashs
         picker.modalPresentationStyle = .fullScreen
         
-        print("✅ Camera picker created successfully")
         return picker
     }
     

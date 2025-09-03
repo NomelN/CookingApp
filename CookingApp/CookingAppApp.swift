@@ -20,7 +20,8 @@ struct CookingAppApp: App {
                 .preferredColorScheme(themeManager.isDarkMode ? .dark : .light)
                 .onAppear {
                     NotificationManager.shared.requestPermission()
-                    print("🚀 App démarrée - thème: \(themeManager.currentTheme.displayName)")
+                    // Réinitialiser le badge quand l'app s'ouvre
+                    NotificationManager.shared.clearAppBadge()
                 }
                 .animation(.easeInOut(duration: 0.3), value: themeManager.currentTheme)
         }
