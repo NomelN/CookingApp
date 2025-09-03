@@ -29,7 +29,7 @@ struct StatisticsView: View {
                 .padding(.vertical, 8)
             }
             .background(ColorTheme.backgroundLight(isDark: themeManager.isDarkMode).ignoresSafeArea())
-            .navigationTitle("📊 Statistiques")
+            .navigationTitle("Statistiques")
             .navigationBarTitleDisplayMode(.large)
             .onAppear {
                 viewModel.fetchStatistics()

@@ -20,6 +20,9 @@ struct MainTabView: View {
                         .ignoresSafeArea()
                     
                     VStack(spacing: 0) {
+                        // Filtre par statut
+                        ProductFilterView(viewModel: viewModel)
+                        
                         if viewModel.sortedProducts.isEmpty {
                             EmptyStateView()
                         } else {
@@ -27,7 +30,7 @@ struct MainTabView: View {
                         }
                     }
                 }
-                .navigationTitle("🍎 Mes Produits")
+                .navigationTitle("Mes Produits")
                 .navigationBarTitleDisplayMode(.large)
                 .searchable(text: $viewModel.searchText, prompt: "Rechercher un produit")
                 .toolbarBackground(ColorTheme.cardBackground(isDark: themeManager.isDarkMode), for: .navigationBar)
@@ -400,6 +403,91 @@ struct EmptyStateView: View {
             .padding(.horizontal, 32)
         }
         .padding(.vertical, 40)
+    }
+}
+
+struct ProductFilterView: View {
+    @ObservedObject var viewModel: ProductsViewModel
+    @EnvironmentObject private var themeManager: ThemeManager
+    
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(ProductFilter.allCases, id: \.rawValue) { filter in
+                    FilterButton(
+                        filter: filter,
+                        isSelected: viewModel.selectedFilter == filter,
+                        count: countForFilter(filter)
+                    ) {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            viewModel.selectedFilter = filter
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+        .padding(.vertical, 12)
+    }
+    
+    private func countForFilter(_ filter: ProductFilter) -> Int {
+        let baseProducts = viewModel.products.filter { !$0.isUsed }
+        return baseProducts.filter { product in
+            filter.matches(product, from: viewModel.lastRefresh)
+        }.count
+    }
+}
+
+struct FilterButton: View {
+    let filter: ProductFilter
+    let isSelected: Bool
+    let count: Int
+    let action: () -> Void
+    @EnvironmentObject private var themeManager: ThemeManager
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: filter.systemIcon)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(isSelected ? .white : filterColor)
+                
+                Text(filter.rawValue)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(isSelected ? .white : ColorTheme.primaryText(isDark: themeManager.isDarkMode))
+                
+                if count > 0 {
+                    Text("(\(count))")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(isSelected ? .white.opacity(0.8) : ColorTheme.secondaryText(isDark: themeManager.isDarkMode))
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(isSelected ? filterColor : ColorTheme.cardBackground(isDark: themeManager.isDarkMode))
+                    .shadow(color: ColorTheme.shadowColor(isDark: themeManager.isDarkMode).opacity(0.1), radius: 4, x: 0, y: 2)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(isSelected ? Color.clear : ColorTheme.borderLight(isDark: themeManager.isDarkMode), lineWidth: 1)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
+    private var filterColor: Color {
+        switch filter {
+        case .all:
+            return ColorTheme.primaryBlue
+        case .expired:
+            return ColorTheme.expiredRed
+        case .expiringSoon:
+            return ColorTheme.criticalOrange
+        case .fresh:
+            return ColorTheme.freshGreen
+        }
     }
 }
 
