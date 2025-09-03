@@ -113,8 +113,8 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         content.sound = .default
         content.categoryIdentifier = "EXPIRATION_REMINDER"
         
-        // Le badge sera géré automatiquement par updateAppBadgeCount()
-        content.badge = NSNumber(value: 0) // Ne pas affecter le badge ici
+        // iOS va incrémenter automatiquement le badge à chaque notification reçue
+        content.badge = NSNumber(value: 1)
         
         let trigger = UNCalendarNotificationTrigger(
             dateMatching: notificationDateComponents,
@@ -125,24 +125,13 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
         
         UNUserNotificationCenter.current().add(request) { _ in
-            // Mettre à jour le badge après ajout
-            DispatchQueue.main.async {
-                self.updateAppBadgeCount()
-            }
+            // Le badge sera géré automatiquement par iOS lors de la réception
         }
     }
     
     func sendImmediateNotification(for product: Product, daysUntilExpiration: Int) {
-        print("🔔 Envoi notification immédiate pour: \(product.name ?? "Produit inconnu"), expire dans \(daysUntilExpiration) jour(s)")
-        
-        guard hasPermission else { 
-            print("❌ Pas de permission pour les notifications")
-            return 
-        }
-        guard let productName = product.name else { 
-            print("❌ Nom du produit manquant")
-            return 
-        }
+        guard hasPermission else { return }
+        guard let productName = product.name else { return }
         
         let content = UNMutableNotificationContent()
         content.title = "🍎 Attention à vos produits !"
@@ -151,29 +140,25 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
             content.body = "⚠️ \(productName) expire aujourd'hui !"
         } else if daysUntilExpiration == 1 {
             content.body = "🟡 \(productName) expire demain !"
+        } else if daysUntilExpiration == 3 {
+            content.body = "🟠 \(productName) expire dans 3 jours !"
+        } else if daysUntilExpiration == 7 {
+            content.body = "🟠 \(productName) expire dans 7 jours !"
         } else {
             content.body = "🟠 \(productName) expire bientôt !"
         }
         
         content.sound = .default
         content.categoryIdentifier = "EXPIRATION_REMINDER"
+        content.badge = NSNumber(value: 1) // iOS va incrémenter le badge
         
         // Notification immédiate (dans 1 seconde)
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
         let identifier = "\(product.id?.uuidString ?? UUID().uuidString)_immediate"
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
         
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("❌ Erreur notification immédiate: \(error)")
-            } else {
-                print("✅ Notification immédiate programmée avec succès")
-            }
-            
-            // Mettre à jour le badge
-            DispatchQueue.main.async {
-                self.updateAppBadgeCount()
-            }
+        UNUserNotificationCenter.current().add(request) { _ in
+            // Le badge sera géré automatiquement par iOS
         }
     }
     
@@ -184,12 +169,15 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         
         // Vérifier si le produit nécessite une notification immédiate
         let daysUntilExpiration = product.daysUntilExpiration
-        print("📅 Produit '\(product.name ?? "inconnu")' expire dans \(daysUntilExpiration) jour(s)")
         
-        if daysUntilExpiration <= 1 && daysUntilExpiration >= 0 {
-            // Produit critique : notification immédiate + programmation future
-            print("⚡ Déclenchement notification immédiate")
+        // Notification immédiate si le produit est dans un intervalle critique
+        if daysUntilExpiration == 7 || daysUntilExpiration == 3 || daysUntilExpiration == 1 || daysUntilExpiration == 0 {
             sendImmediateNotification(for: product, daysUntilExpiration: daysUntilExpiration)
+        }
+        
+        // Cas spécial : si le produit est déjà expiré (daysUntilExpiration < 0)
+        if daysUntilExpiration < 0 {
+            sendImmediateNotification(for: product, daysUntilExpiration: 0) // Traiter comme "expire aujourd'hui"
         }
         
         // Programmer les notifications futures normalement
@@ -208,11 +196,6 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         if settings.expirationDay {
             scheduleNotification(for: product, daysBeforeExpiration: 0)
         }
-        
-        // Debug : afficher toutes les notifications programmées
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            self.debugNotifications()
-        }
     }
     
     func removeNotifications(for product: Product) {
@@ -227,9 +210,6 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         ]
         
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: identifiers)
-        
-        // Mettre à jour le badge après suppression
-        updateAppBadgeCount()
     }
     
     func removeAllNotifications() {
@@ -244,9 +224,9 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
     func userNotificationCenter(_ center: UNUserNotificationCenter, 
                                willPresent notification: UNNotification, 
                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        // Afficher la notification même en premier plan avec son et alerte
-        // Le badge est géré par updateAppBadgeCount()
-        completionHandler([.alert, .sound])
+        // Afficher la notification même en premier plan avec son, alerte ET badge
+        // iOS va automatiquement incrémenter le badge
+        completionHandler([.alert, .sound, .badge])
     }
     
     func userNotificationCenter(_ center: UNUserNotificationCenter, 
@@ -272,8 +252,6 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
     
     // MARK: - Badge Management
     
-    // Ces méthodes ne sont plus utilisées - le badge est géré par updateAppBadgeCount()
-    
     func clearAppBadge() {
         DispatchQueue.main.async {
             UIApplication.shared.applicationIconBadgeNumber = 0
@@ -282,22 +260,11 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         UNUserNotificationCenter.current().removeAllDeliveredNotifications()
     }
     
-    func updateAppBadgeCount() {
-        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
-            // Compter les notifications uniques (par produit)
-            let uniqueProductIds = Set(requests.compactMap { request in
-                request.identifier.components(separatedBy: "_").first
-            })
-            
-            DispatchQueue.main.async {
-                UIApplication.shared.applicationIconBadgeNumber = uniqueProductIds.count
-            }
-        }
-    }
-    
-    // Fonction de debug pour vérifier les notifications programmées
+    // Fonction de debug pour vérifier les notifications programmées (utilisable manuellement si besoin)
     func debugNotifications() {
         UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
+            // Silencieux en production - décommentez les lignes ci-dessous pour débugger
+            /*
             print("=== DEBUG NOTIFICATIONS ===")
             print("Nombre total de notifications: \(requests.count)")
             
@@ -311,6 +278,7 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
                     print("---")
                 }
             }
+            */
         }
     }
 }
