@@ -44,6 +44,9 @@ struct MainTabView: View {
                 .sheet(isPresented: $showingAddProduct) {
                     AddProductView(viewModel: viewModel)
                 }
+                .onAppear {
+                    viewModel.forceRefreshView()
+                }
             }
             .navigationViewStyle(StackNavigationViewStyle())
             .tabItem {
@@ -66,6 +69,9 @@ struct MainTabView: View {
                 }
         }
         .accentColor(ColorTheme.primaryBlue)
+        .onAppear {
+            viewModel.forceRefreshView()
+        }
     }
 }
 
@@ -187,16 +193,17 @@ struct ProductCardView: View {
                     HStack {
                         HStack(spacing: 8) {
                             Circle()
-                                .fill(product.statusColor)
+                                .fill(product.statusColor(from: viewModel.lastRefresh))
                                 .frame(width: 10, height: 10)
                             
-                            if product.daysUntilExpiration >= 0 {
-                                Text("\(product.daysUntilExpiration) jour\(product.daysUntilExpiration > 1 ? "s" : "") restant\(product.daysUntilExpiration > 1 ? "s" : "")")
+                            let currentDays = product.daysUntilExpiration(from: viewModel.lastRefresh)
+                            if currentDays >= 0 {
+                                Text("\(currentDays) jour\(currentDays > 1 ? "s" : "") restant\(currentDays > 1 ? "s" : "")")
                                     .font(.subheadline)
                                     .fontWeight(.medium)
-                                    .foregroundColor(product.statusColor)
+                                    .foregroundColor(product.statusColor(from: viewModel.lastRefresh))
                             } else {
-                                Text("Expiré depuis \(abs(product.daysUntilExpiration)) jour\(abs(product.daysUntilExpiration) > 1 ? "s" : "")")
+                                Text("Expiré depuis \(abs(currentDays)) jour\(abs(currentDays) > 1 ? "s" : "")")
                                     .font(.subheadline)
                                     .fontWeight(.medium)
                                     .foregroundColor(ColorTheme.expiredRed)
@@ -219,7 +226,7 @@ struct ProductCardView: View {
                             .frame(height: 3)
                         
                         Rectangle()
-                            .fill(product.statusColor.opacity(0.8))
+                            .fill(product.statusColor(from: viewModel.lastRefresh).opacity(0.8))
                             .frame(width: max(0, geometry.size.width * progressPercentage), height: 3)
                     }
                 }
@@ -241,9 +248,9 @@ struct ProductCardView: View {
                     
                     Spacer()
                     
-                    Text(product.expirationStatus.description.uppercased())
+                    Text(product.expirationStatus(from: viewModel.lastRefresh).description.uppercased())
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(product.statusColor)
+                        .foregroundColor(product.statusColor(from: viewModel.lastRefresh))
                         .tracking(0.5)
                 }
                 .padding(.horizontal, 20)
@@ -273,7 +280,7 @@ struct ProductCardView: View {
               let createdAt = product.createdAt else { return 0.0 }
         
         let totalDays = Calendar.current.dateComponents([.day], from: createdAt, to: expirationDate).day ?? 1
-        let remainingDays = max(0, product.daysUntilExpiration)
+        let remainingDays = max(0, product.daysUntilExpiration(from: viewModel.lastRefresh))
         
         return totalDays > 0 ? Double(totalDays - remainingDays) / Double(totalDays) : 1.0
     }

@@ -44,7 +44,6 @@ class ProductsViewModel: ObservableObject {
                 DispatchQueue.main.async {
                     self.lastRefresh = Date()
                     self.objectWillChange.send()
-                    print("🔄 App became active: refreshing expiration calculations")
                 }
             }
             .store(in: &cancellables)
@@ -78,7 +77,6 @@ class ProductsViewModel: ObservableObject {
             DispatchQueue.main.async {
                 self.lastRefresh = Date()
                 self.objectWillChange.send()
-                print("🔄 Daily refresh: recalculating expiration days")
             }
         }
     }
@@ -158,5 +156,20 @@ class ProductsViewModel: ObservableObject {
         
         persistenceController.save()
         fetchProducts()
+    }
+    
+    func refreshExpirationCalculations() {
+        DispatchQueue.main.async {
+            self.lastRefresh = Date()
+            self.objectWillChange.send()
+        }
+    }
+    
+    func forceRefreshView() {
+        DispatchQueue.main.async {
+            self.lastRefresh = Date()
+            self.products = self.products
+            self.objectWillChange.send()
+        }
     }
 }

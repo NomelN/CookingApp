@@ -9,140 +9,15 @@ struct SettingsView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                ColorTheme.backgroundLight(isDark: themeManager.isDarkMode)
+                ColorTheme.backgroundLight
                     .ignoresSafeArea()
                 
                 ScrollView {
                     VStack(spacing: 24) {
-                        // Section Notifications
-                        VStack(spacing: 20) {
-                            SectionHeader(
-                                title: "Notifications",
-                                subtitle: "Gérez vos rappels d'expiration",
-                                iconName: "bell.fill",
-                                color: ColorTheme.accentOrange,
-                                isDarkMode: themeManager.isDarkMode
-                            )
-                            
-                            if !notificationManager.hasPermission {
-                                VStack(alignment: .leading, spacing: 16) {
-                                    HStack {
-                                        Image(systemName: "exclamationmark.triangle.fill")
-                                            .foregroundColor(ColorTheme.accentOrange)
-                                        Text("Notifications désactivées")
-                                            .font(.subheadline)
-                                            .fontWeight(.medium)
-                                            .foregroundColor(ColorTheme.accentOrange)
-                                    }
-                                    
-                                    Text("Activez les notifications pour recevoir des rappels avant l'expiration de vos produits.")
-                                        .font(.subheadline)
-                                        .foregroundColor(ColorTheme.secondaryText(isDark: themeManager.isDarkMode))
-                                        .lineSpacing(2)
-                                    
-                                    Button("Activer les notifications") {
-                                        notificationManager.requestPermission()
-                                    }
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.white)
-                                    .padding(.vertical, 12)
-                                    .padding(.horizontal, 24)
-                                    .background(ColorTheme.accentGradient)
-                                    .clipShape(RoundedRectangle(cornerRadius: 25))
-                                    .shadow(color: ColorTheme.accentOrange.opacity(0.3), radius: 8, x: 0, y: 4)
-                                }
-                            } else {
-                                VStack(alignment: .leading, spacing: 16) {
-                                    Text("Recevoir des rappels :")
-                                        .font(.subheadline)
-                                        .fontWeight(.medium)
-                                        .foregroundColor(ColorTheme.primaryText(isDark: themeManager.isDarkMode))
-                                    
-                                    VStack(spacing: 12) {
-                                        NotificationToggleRow(
-                                            title: "7 jours avant expiration",
-                                            icon: "calendar",
-                                            color: ColorTheme.freshGreen,
-                                            isOn: $notificationSettings.sevenDaysBefore
-                                        )
-                                        
-                                        NotificationToggleRow(
-                                            title: "3 jours avant expiration",
-                                            icon: "calendar.badge.exclamationmark",
-                                            color: ColorTheme.warningYellow,
-                                            isOn: $notificationSettings.threeDaysBefore
-                                        )
-                                        
-                                        NotificationToggleRow(
-                                            title: "1 jour avant expiration",
-                                            icon: "exclamationmark.triangle.fill",
-                                            color: ColorTheme.criticalOrange,
-                                            isOn: $notificationSettings.oneDayBefore
-                                        )
-                                        
-                                        NotificationToggleRow(
-                                            title: "Le jour d'expiration",
-                                            icon: "alarm.fill",
-                                            color: ColorTheme.expiredRed,
-                                            isOn: $notificationSettings.expirationDay
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        .padding(20)
-                        .background(ColorTheme.cardBackground(isDark: themeManager.isDarkMode))
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
-                        .shadow(color: ColorTheme.shadowColor(isDark: themeManager.isDarkMode), radius: 8, x: 0, y: 4)
-                        
-                        // Section Thème
-                        VStack(spacing: 20) {
-                            SectionHeader(
-                                title: "Apparence",
-                                subtitle: "Choisissez votre thème préféré",
-                                iconName: themeManager.currentTheme.iconName,
-                                color: ColorTheme.primaryPurple,
-                                isDarkMode: themeManager.isDarkMode
-                            )
-                            
-                            VStack(spacing: 12) {
-                                ForEach(ThemeMode.allCases, id: \.self) { theme in
-                                    ThemeSelectionRow(
-                                        theme: theme,
-                                        isSelected: themeManager.currentTheme == theme,
-                                        onSelect: {
-                                            themeManager.setTheme(theme)
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                        .padding(20)
-                        .background(ColorTheme.cardBackground(isDark: themeManager.isDarkMode))
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
-                        .shadow(color: ColorTheme.shadowColor(isDark: themeManager.isDarkMode), radius: 8, x: 0, y: 4)
-                        
-                        // Section À propos
-                        VStack(spacing: 20) {
-                            SectionHeader(
-                                title: "À propos",
-                                subtitle: "Informations sur l'application",
-                                iconName: "info.circle.fill",
-                                color: ColorTheme.primaryBlue,
-                                isDarkMode: themeManager.isDarkMode
-                            )
-                            
-                            VStack(spacing: 16) {
-                                InfoRow(title: "Version", value: "1.0.0", icon: "app.badge")
-                                InfoRow(title: "Développé par", value: "Mickaël Nomel", icon: "person.circle")
-                                InfoRow(title: "Objectif", value: "Réduire le gaspillage alimentaire", icon: "leaf.fill")
-                            }
-                        }
-                        .padding(20)
-                        .background(ColorTheme.cardBackground(isDark: themeManager.isDarkMode))
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
-                        .shadow(color: ColorTheme.shadowColor(isDark: themeManager.isDarkMode), radius: 8, x: 0, y: 4)
+                        NotificationSection()
+                        ThemeSection()
+                        DebugSection()
+                        AboutSection()
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 20)
@@ -155,6 +30,254 @@ struct SettingsView: View {
         .onAppear {
             notificationManager.checkPermission()
         }
+    }
+    
+    // MARK: - Notification Section
+    @ViewBuilder
+    private func NotificationSection() -> some View {
+        VStack(spacing: 20) {
+            SectionHeader(
+                title: "Notifications",
+                subtitle: "Gérez vos rappels d'expiration",
+                iconName: "bell.fill",
+                color: ColorTheme.accentOrange
+            )
+            
+            if !notificationManager.hasPermission {
+                NotificationPermissionView()
+            } else {
+                NotificationSettingsView()
+            }
+        }
+        .padding(20)
+        .background(ColorTheme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: ColorTheme.shadowColor, radius: 8, x: 0, y: 4)
+    }
+    
+    @ViewBuilder
+    private func NotificationPermissionView() -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(ColorTheme.accentOrange)
+                Text("Notifications désactivées")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(ColorTheme.accentOrange)
+            }
+            
+            Text("Activez les notifications pour recevoir des rappels avant l'expiration de vos produits.")
+                .font(.subheadline)
+                .foregroundColor(ColorTheme.secondaryText)
+                .lineSpacing(2)
+            
+            Button("Activer les notifications") {
+                notificationManager.requestPermission()
+            }
+            .font(.subheadline)
+            .fontWeight(.semibold)
+            .foregroundColor(.white)
+            .padding(.vertical, 12)
+            .padding(.horizontal, 24)
+            .background(ColorTheme.accentGradient)
+            .clipShape(RoundedRectangle(cornerRadius: 25))
+            .shadow(color: ColorTheme.accentOrange.opacity(0.3), radius: 8, x: 0, y: 4)
+        }
+    }
+    
+    @ViewBuilder
+    private func NotificationSettingsView() -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Recevoir des rappels :")
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundColor(ColorTheme.primaryText)
+            
+            VStack(spacing: 12) {
+                NotificationToggleRow(
+                    title: "7 jours avant expiration",
+                    icon: "calendar",
+                    color: ColorTheme.freshGreen,
+                    isOn: $notificationSettings.sevenDaysBefore
+                )
+                
+                NotificationToggleRow(
+                    title: "3 jours avant expiration",
+                    icon: "calendar.badge.exclamationmark",
+                    color: ColorTheme.warningYellow,
+                    isOn: $notificationSettings.threeDaysBefore
+                )
+                
+                NotificationToggleRow(
+                    title: "1 jour avant expiration",
+                    icon: "exclamationmark.triangle.fill",
+                    color: ColorTheme.criticalOrange,
+                    isOn: $notificationSettings.oneDayBefore
+                )
+                
+                NotificationToggleRow(
+                    title: "Le jour d'expiration",
+                    icon: "alarm.fill",
+                    color: ColorTheme.expiredRed,
+                    isOn: $notificationSettings.expirationDay
+                )
+            }
+        }
+    }
+    
+    // MARK: - Theme Section
+    @ViewBuilder
+    private func ThemeSection() -> some View {
+        VStack(spacing: 20) {
+            SectionHeader(
+                title: "Apparence",
+                subtitle: "Choisissez votre thème préféré",
+                iconName: themeManager.currentTheme.iconName,
+                color: ColorTheme.primaryPurple
+            )
+            
+            VStack(spacing: 12) {
+                ForEach(ThemeMode.allCases, id: \.self) { theme in
+                    ThemeSelectionRow(
+                        theme: theme,
+                        isSelected: themeManager.currentTheme == theme,
+                        onSelect: {
+                            themeManager.setTheme(theme)
+                        }
+                    )
+                }
+            }
+        }
+        .padding(20)
+        .background(ColorTheme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: ColorTheme.shadowColor, radius: 8, x: 0, y: 4)
+    }
+    
+    // MARK: - Debug Section
+    @ViewBuilder
+    private func DebugSection() -> some View {
+        #if DEBUG
+        VStack(spacing: 20) {
+            SectionHeader(
+                title: "Debug Notifications",
+                subtitle: "Outils de test et débogage",
+                iconName: "bell.badge.fill",
+                color: ColorTheme.primaryGreen
+            )
+            
+            VStack(spacing: 12) {
+                DebugButton(
+                    title: "Tester les notifications",
+                    icon: "bell.circle.fill",
+                    color: ColorTheme.primaryBlue,
+                    detail: "3 sec"
+                ) {
+                    notificationManager.sendTestNotification()
+                }
+                
+                DebugButton(
+                    title: "Lister notifications programmées",
+                    icon: "list.bullet.circle.fill",
+                    color: ColorTheme.primaryGreen,
+                    detail: "Console"
+                ) {
+                    notificationManager.listPendingNotifications()
+                }
+                
+                DebugButton(
+                    title: "Vérifier permissions",
+                    icon: "checkmark.shield.fill",
+                    color: ColorTheme.primaryPurple,
+                    statusIndicator: notificationManager.hasPermission
+                ) {
+                    notificationManager.checkPermission()
+                }
+                
+                DebugButton(
+                    title: "Test notification immédiate",
+                    icon: "bell.fill",
+                    color: ColorTheme.accentOrange,
+                    detail: "15 sec"
+                ) {
+                    notificationManager.sendImmediateTestNotification()
+                }
+                
+                DebugButton(
+                    title: "Nettoyer toutes notifications",
+                    icon: "trash.circle.fill",
+                    color: Color.red,
+                    detail: "Reset"
+                ) {
+                    notificationManager.cleanupAndRescheduleAllNotifications()
+                }
+            }
+        }
+        .padding(20)
+        .background(ColorTheme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: ColorTheme.shadowColor, radius: 8, x: 0, y: 4)
+        #endif
+    }
+    
+    @ViewBuilder
+    private func DebugButton(
+        title: String,
+        icon: String,
+        color: Color,
+        detail: String? = nil,
+        statusIndicator: Bool? = nil,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack {
+                Image(systemName: icon)
+                    .foregroundColor(color)
+                
+                Text(title)
+                    .foregroundColor(ColorTheme.primaryText)
+                
+                Spacer()
+                
+                if let detail = detail {
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundColor(ColorTheme.secondaryText)
+                } else if let status = statusIndicator {
+                    Circle()
+                        .fill(status ? ColorTheme.primaryGreen : Color.red)
+                        .frame(width: 12, height: 12)
+                }
+            }
+            .padding(.vertical, 12)
+            .padding(.horizontal, 16)
+            .background(ColorTheme.sectionBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+    
+    // MARK: - About Section
+    @ViewBuilder
+    private func AboutSection() -> some View {
+        VStack(spacing: 20) {
+            SectionHeader(
+                title: "À propos",
+                subtitle: "Informations sur l'application",
+                iconName: "info.circle.fill",
+                color: ColorTheme.primaryBlue
+            )
+            
+            VStack(spacing: 16) {
+                InfoRow(title: "Version", value: "1.0.0", icon: "app.badge")
+                InfoRow(title: "Développé par", value: "Mickaël Nomel", icon: "person.circle")
+                InfoRow(title: "Objectif", value: "Réduire le gaspillage alimentaire", icon: "leaf.fill")
+            }
+        }
+        .padding(20)
+        .background(ColorTheme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: ColorTheme.shadowColor, radius: 8, x: 0, y: 4)
     }
 }
 
@@ -226,7 +349,6 @@ struct SectionHeader: View {
     let subtitle: String
     let iconName: String
     let color: Color
-    let isDarkMode: Bool
     
     var body: some View {
         HStack(spacing: 12) {
@@ -242,10 +364,10 @@ struct SectionHeader: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(ColorTheme.primaryText(isDark: isDarkMode))
+                    .foregroundColor(ColorTheme.primaryText)
                 Text(subtitle)
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(ColorTheme.secondaryText(isDark: isDarkMode))
+                    .foregroundColor(ColorTheme.secondaryText)
             }
             Spacer()
         }

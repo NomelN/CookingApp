@@ -2,13 +2,22 @@ import Foundation
 import SwiftUI
 
 extension Product {
-    var daysUntilExpiration: Int {
+    func daysUntilExpiration(from currentDate: Date = Date()) -> Int {
         guard let expirationDate = expirationDate else { return 0 }
-        return Calendar.current.dateComponents([.day], from: Date(), to: expirationDate).day ?? 0
+        
+        let calendar = Calendar.current
+        let currentDateStart = calendar.startOfDay(for: currentDate)
+        let expirationDateStart = calendar.startOfDay(for: expirationDate)
+        
+        return calendar.dateComponents([.day], from: currentDateStart, to: expirationDateStart).day ?? 0
     }
     
-    var expirationStatus: ExpirationStatus {
-        let days = daysUntilExpiration
+    var daysUntilExpiration: Int {
+        return daysUntilExpiration(from: Date())
+    }
+    
+    func expirationStatus(from currentDate: Date = Date()) -> ExpirationStatus {
+        let days = daysUntilExpiration(from: currentDate)
         
         if days < 0 {
             return .expired
@@ -21,8 +30,12 @@ extension Product {
         }
     }
     
-    var statusColor: Color {
-        switch expirationStatus {
+    var expirationStatus: ExpirationStatus {
+        return expirationStatus(from: Date())
+    }
+    
+    func statusColor(from currentDate: Date = Date()) -> Color {
+        switch expirationStatus(from: currentDate) {
         case .good:
             return ColorTheme.freshGreen
         case .warning:
@@ -32,6 +45,10 @@ extension Product {
         case .expired:
             return ColorTheme.expiredRed
         }
+    }
+    
+    var statusColor: Color {
+        return statusColor(from: Date())
     }
     
     var image: Image? {
