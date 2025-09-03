@@ -3,11 +3,21 @@ import Foundation
 class ProductDatabaseService {
     static let shared = ProductDatabaseService()
     
+    private let rateLimiter = RateLimiter(maxRequests: 90, timeWindow: 60) // 90/min pour rester sous la limite
+    
     private init() {}
     
     func fetchProductInfo(barcode: String, completion: @escaping (ProductInfo?) -> Void) {
-        // Exemple avec Open Food Facts
-        let urlString = "https://world.openfoodfacts.org/api/v0/product/\(barcode).json"
+        // Vérifier le rate limiting
+        guard rateLimiter.canMakeRequest() else {
+            print("⚠️ Rate limit atteint, requête reportée")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                self.fetchProductInfo(barcode: barcode, completion: completion)
+            }
+            return
+        }
+        
+        let urlString = "https://world.openfoodfacts.net/api/v0/product/\(barcode).json"
         
         guard let url = URL(string: urlString) else {
             DispatchQueue.main.async {
@@ -18,10 +28,41 @@ class ProductDatabaseService {
         
         print("🔍 Recherche du produit avec le code-barres: \(barcode)")
         
-        URLSession.shared.dataTask(with: url) { data, response, error in
+        // Créer une requête avec User-Agent personnalisé
+        var request = URLRequest(url: url)
+        request.setValue("CookingApp/1.0 (nomelmickael51@gmail.com)", forHTTPHeaderField: "User-Agent")
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
-                guard let data = data, error == nil else {
-                    print("❌ Erreur réseau: \(error?.localizedDescription ?? "Unknown error")")
+                // Gestion d'erreurs réseau améliorée
+                if let error = error {
+                    print("❌ Erreur réseau: \(error.localizedDescription)")
+                    completion(nil)
+                    return
+                }
+                
+                // Vérifier la réponse HTTP
+                if let httpResponse = response as? HTTPURLResponse {
+                    switch httpResponse.statusCode {
+                    case 200:
+                        break // OK
+                    case 429:
+                        print("⚠️ Rate limit dépassé côté serveur")
+                        completion(nil)
+                        return
+                    case 404:
+                        print("❌ Produit non trouvé (404)")
+                        completion(nil)
+                        return
+                    default:
+                        print("❌ Erreur HTTP \(httpResponse.statusCode)")
+                        completion(nil)
+                        return
+                    }
+                }
+                
+                guard let data = data else {
+                    print("❌ Aucune donnée reçue")
                     completion(nil)
                     return
                 }
@@ -29,9 +70,8 @@ class ProductDatabaseService {
                 do {
                     let result = try JSONDecoder().decode(OpenFoodFactsResponse.self, from: data)
                     
-                    if let product = result.product {
-                        print("✅ Produit trouvé: \(product.productName ?? "Sans nom")")
-                        // Convertir OpenFoodFactsProduct vers ProductInfo
+                    if result.status == 1, let product = result.product {
+                        print("✅ Produit trouvé: \(product.displayName ?? "Sans nom")")
                         let productInfo = ProductInfo(
                             displayName: product.displayName,
                             productDescription: product.productDescription,
@@ -39,7 +79,7 @@ class ProductDatabaseService {
                         )
                         completion(productInfo)
                     } else {
-                        print("❌ Produit non trouvé dans la base de données")
+                        print("❌ Produit non trouvé dans la base de données (status: \(result.status))")
                         completion(nil)
                     }
                 } catch {
@@ -124,4 +164,35 @@ struct ProductInfo {
     let displayName: String?
     let productDescription: String?
     let bestImageUrl: String?
+}
+
+// Rate Limiter pour respecter les limites de l'API Open Food Facts
+class RateLimiter {
+    private let maxRequests: Int
+    private let timeWindow: TimeInterval
+    private var requestTimes: [Date] = []
+    private let queue = DispatchQueue(label: "rateLimiter", attributes: .concurrent)
+    
+    init(maxRequests: Int, timeWindow: TimeInterval) {
+        self.maxRequests = maxRequests
+        self.timeWindow = timeWindow
+    }
+    
+    func canMakeRequest() -> Bool {
+        return queue.sync(flags: .barrier) {
+            let now = Date()
+            let cutoff = now.addingTimeInterval(-timeWindow)
+            
+            // Nettoyer les anciennes requêtes
+            requestTimes = requestTimes.filter { $0 > cutoff }
+            
+            // Vérifier si on peut faire une nouvelle requête
+            if requestTimes.count < maxRequests {
+                requestTimes.append(now)
+                return true
+            }
+            
+            return false
+        }
+    }
 }
