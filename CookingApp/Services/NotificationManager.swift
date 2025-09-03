@@ -1,5 +1,6 @@
 import Foundation
 import UserNotifications
+import UIKit
 
 class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationManager()
@@ -16,14 +17,9 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
             DispatchQueue.main.async {
                 self.hasPermission = granted
-                if let error = error {
-                    print("⚠️ Notification permission error: \(error)")
-                } else {
-                    print("✅ Notification permission: \(granted)")
-                    if granted {
-                        // Configurer les catégories de notifications
-                        self.setupNotificationCategories()
-                    }
+                if granted {
+                    // Configurer les catégories de notifications
+                    self.setupNotificationCategories()
                 }
             }
         }
@@ -33,10 +29,6 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         UNUserNotificationCenter.current().getNotificationSettings { settings in
             DispatchQueue.main.async {
                 self.hasPermission = settings.authorizationStatus == .authorized
-                print("🔔 Notification status: \(settings.authorizationStatus.rawValue)")
-                print("   Alert setting: \(settings.alertSetting.rawValue)")
-                print("   Badge setting: \(settings.badgeSetting.rawValue)")
-                print("   Sound setting: \(settings.soundSetting.rawValue)")
                 
                 if settings.authorizationStatus == .authorized && settings.alertSetting == .enabled {
                     self.setupNotificationCategories()
@@ -66,24 +58,16 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         )
         
         UNUserNotificationCenter.current().setNotificationCategories([expirationCategory])
-        print("✅ Notification categories configured")
     }
     
     func scheduleNotification(for product: Product, daysBeforeExpiration: Int = 1) {
-        guard hasPermission else {
-            print("❌ Notification permission not granted for \(product.name ?? "Unknown")")
-            return
-        }
+        guard hasPermission else { return }
         
         guard let expirationDate = product.expirationDate,
-              let productName = product.name else { 
-            print("❌ Missing expiration date or product name")
-            return 
-        }
+              let productName = product.name else { return }
         
-        // Calculer la date de notification (à 10h00 pour être plus visible)
+        // Calculer la date de notification (à 9h00)
         guard let baseNotificationDate = Calendar.current.date(byAdding: .day, value: -daysBeforeExpiration, to: expirationDate) else {
-            print("❌ Could not calculate notification date")
             return
         }
         
@@ -93,21 +77,14 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         notificationDateComponents.timeZone = TimeZone.current
         
         guard let finalNotificationDate = Calendar.current.date(from: notificationDateComponents) else {
-            print("❌ Could not create notification date")
             return
         }
         
         // Vérifier si la date de notification est dans le futur
         let now = Date()
         if finalNotificationDate <= now {
-            print("⚠️ Notification date is in the past: \(finalNotificationDate) (now: \(now))")
-            print("   Product: \(productName), expires: \(expirationDate), notify \(daysBeforeExpiration) days before")
             return
         }
-        
-        print("📅 Scheduling notification for \(productName):")
-        print("   Expires: \(expirationDate)")
-        print("   Notify: \(finalNotificationDate) (\(daysBeforeExpiration) days before)")
         
         let content = UNMutableNotificationContent()
         content.title = "🍎 Attention à vos produits !"
@@ -121,8 +98,10 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         }
         
         content.sound = .default
-        content.badge = NSNumber(value: 1)
         content.categoryIdentifier = "EXPIRATION_REMINDER"
+        
+        // Calculer le badge basé sur les notifications programmées pour aujourd'hui et les prochains jours
+        calculateBadgeForNotification(content: content, currentDate: Date())
         
         let trigger = UNCalendarNotificationTrigger(
             dateMatching: notificationDateComponents,
@@ -132,14 +111,7 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         let identifier = "\(product.id?.uuidString ?? UUID().uuidString)_\(daysBeforeExpiration)"
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
         
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("❌ Error scheduling notification: \(error)")
-            } else {
-                print("✅ Notification scheduled for \(productName) - \(daysBeforeExpiration) days before")
-                print("   Notification date: \(finalNotificationDate)")
-            }
-        }
+        UNUserNotificationCenter.current().add(request) { _ in }
     }
     
     func scheduleAllNotifications(for product: Product, settings: NotificationSettings) {
@@ -175,179 +147,92 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         ]
         
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: identifiers)
+        
+        // Mettre à jour le badge après suppression
+        updateAppBadgeCount()
     }
     
     func removeAllNotifications() {
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+        // Effacer le badge quand toutes les notifications sont supprimées
+        clearAppBadge()
     }
     
-    // Méthode de debug pour lister toutes les notifications programmées
-    func listPendingNotifications() {
-        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
-            print("📋 Pending notifications: \(requests.count)")
-            for request in requests {
-                print("   - ID: \(request.identifier)")
-                print("     Title: \(request.content.title)")
-                print("     Body: \(request.content.body)")
-                if let trigger = request.trigger as? UNCalendarNotificationTrigger,
-                   let nextTriggerDate = trigger.nextTriggerDate() {
-                    print("     Trigger date: \(nextTriggerDate)")
-                }
-                print("   ---")
-            }
-        }
-    }
-    
-    // Méthode pour tester les notifications immédiatement
-    func sendTestNotification() {
-        print("🧪 Attempting to send test notification...")
-        
-        // Vérifier d'abord les permissions
-        UNUserNotificationCenter.current().getNotificationSettings { settings in
-            DispatchQueue.main.async {
-                print("   Permission status: \(settings.authorizationStatus.rawValue)")
-                
-                guard settings.authorizationStatus == .authorized else {
-                    print("❌ No notification permission for test")
-                    return
-                }
-                
-                let content = UNMutableNotificationContent()
-                content.title = "🧪 Test CookingApp"
-                content.body = "Les notifications fonctionnent correctement !"
-                content.sound = .default
-                content.badge = 1
-                
-                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 3, repeats: false)
-                let request = UNNotificationRequest(identifier: "test_notification_\(Date().timeIntervalSince1970)", content: content, trigger: trigger)
-                
-                UNUserNotificationCenter.current().add(request) { error in
-                    if let error = error {
-                        print("❌ Test notification error: \(error)")
-                    } else {
-                        print("✅ Test notification scheduled! Check in 3 seconds...")
-                    }
-                }
-            }
-        }
-    }
-    
-    // Méthode pour nettoyer et reprogrammer toutes les notifications
-    func cleanupAndRescheduleAllNotifications() {
-        print("🧹 Cleaning up all notifications and rescheduling...")
-        
-        // Supprimer toutes les notifications existantes
-        removeAllNotifications()
-        
-        // Re-programmer toutes les notifications actives
-        // Cette méthode devrait être appelée depuis ProductsViewModel
-        print("✅ Cleanup completed. Call scheduleAllNotifications for each active product.")
-    }
-    
-    // Méthode pour forcer une notification test dans 10 secondes
-    func sendImmediateTestNotification() {
-        print("🧪 Sending immediate test notification...")
-        print("⚠️  IMPORTANT: Mettez l'app en arrière-plan (bouton home) pour voir la notification !")
-        
-        UNUserNotificationCenter.current().getNotificationSettings { settings in
-            DispatchQueue.main.async {
-                guard settings.authorizationStatus == .authorized else {
-                    print("❌ No notification permission")
-                    return
-                }
-                
-                let content = UNMutableNotificationContent()
-                content.title = "🍎 CookingApp Test"
-                content.body = "✅ Les notifications fonctionnent ! Mettez l'app en arrière-plan pour les voir."
-                content.sound = .default
-                content.badge = 1
-                content.categoryIdentifier = "EXPIRATION_REMINDER"
-                
-                // Déclencher dans 15 secondes pour laisser le temps de mettre en arrière-plan
-                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 15, repeats: false)
-                let request = UNNotificationRequest(
-                    identifier: "background_test_\(Date().timeIntervalSince1970)", 
-                    content: content, 
-                    trigger: trigger
-                )
-                
-                UNUserNotificationCenter.current().add(request) { error in
-                    if let error = error {
-                        print("❌ Background test notification error: \(error)")
-                    } else {
-                        print("✅ Background test notification scheduled! METTEZ L'APP EN ARRIÈRE-PLAN dans 5 secondes...")
-                    }
-                }
-            }
-        }
-    }
-    
-    // Méthode pour vérifier et corriger les notifications d'un produit
-    func debugNotificationsForProduct(_ product: Product) {
-        guard let productId = product.id?.uuidString,
-              let productName = product.name,
-              let expirationDate = product.expirationDate else {
-            print("❌ Invalid product data for notifications")
-            return
-        }
-        
-        print("🔍 Debug notifications for product: \(productName)")
-        print("   ID: \(productId)")
-        print("   Expires: \(expirationDate)")
-        print("   Days until expiration: \(Calendar.current.dateComponents([.day], from: Date(), to: expirationDate).day ?? 0)")
-        
-        // Lister les notifications programmées pour ce produit
-        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
-            let productNotifications = requests.filter { $0.identifier.contains(productId) }
-            print("   📋 Found \(productNotifications.count) pending notifications:")
-            
-            for request in productNotifications {
-                print("     - \(request.identifier)")
-                if let trigger = request.trigger as? UNCalendarNotificationTrigger,
-                   let nextDate = trigger.nextTriggerDate() {
-                    print("       Trigger: \(nextDate)")
-                }
-            }
-        }
-    }
     
     // MARK: - UNUserNotificationCenterDelegate
     
-    // Cette méthode permet d'afficher les notifications même quand l'app est au premier plan
     func userNotificationCenter(_ center: UNUserNotificationCenter, 
                                willPresent notification: UNNotification, 
                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        print("🔔 Notification will present: \(notification.request.identifier)")
-        print("   Title: \(notification.request.content.title)")
-        print("   Body: \(notification.request.content.body)")
+        // Incrémenter le badge quand une notification arrive
+        DispatchQueue.main.async {
+            let currentBadge = UIApplication.shared.applicationIconBadgeNumber
+            UIApplication.shared.applicationIconBadgeNumber = currentBadge + 1
+        }
         
         // Afficher la notification même en premier plan avec son, alerte et badge
         completionHandler([.alert, .sound, .badge])
     }
     
-    // Cette méthode est appelée quand l'utilisateur tape sur la notification
     func userNotificationCenter(_ center: UNUserNotificationCenter, 
                                didReceive response: UNNotificationResponse, 
                                withCompletionHandler completionHandler: @escaping () -> Void) {
-        print("🔔 Notification tapped: \(response.notification.request.identifier)")
-        print("   Action: \(response.actionIdentifier)")
-        
         // Gérer les actions personnalisées
         switch response.actionIdentifier {
         case "VIEW_PRODUCT":
-            print("👀 User wants to view product")
             // TODO: Naviguer vers le produit
+            break
         case "MARK_USED":
-            print("✅ User wants to mark product as used")
             // TODO: Marquer le produit comme utilisé
+            break
         case UNNotificationDefaultActionIdentifier:
-            print("📱 User tapped the notification")
             // TODO: Ouvrir l'app sur la liste des produits
+            break
         default:
             break
         }
         
         completionHandler()
+    }
+    
+    // MARK: - Badge Management
+    
+    private func calculateBadgeForNotification(content: UNMutableNotificationContent, currentDate: Date) {
+        // Laisser iOS gérer l'incrémentation automatique avec la valeur 1
+        content.badge = NSNumber(value: 1)
+    }
+    
+    private func calculateAndSetBadgeCount(for content: UNMutableNotificationContent) {
+        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
+            // Compter les notifications uniques (par produit)
+            let uniqueProductIds = Set(requests.compactMap { request in
+                request.identifier.components(separatedBy: "_").first
+            })
+            
+            let badgeCount = uniqueProductIds.count + 1 // +1 pour la nouvelle notification
+            content.badge = NSNumber(value: badgeCount)
+        }
+    }
+    
+    func clearAppBadge() {
+        DispatchQueue.main.async {
+            UIApplication.shared.applicationIconBadgeNumber = 0
+        }
+        // Supprimer aussi les notifications délivrées pour éviter l'accumulation
+        UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+    }
+    
+    func updateAppBadgeCount() {
+        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
+            // Compter les notifications uniques (par produit)
+            let uniqueProductIds = Set(requests.compactMap { request in
+                request.identifier.components(separatedBy: "_").first
+            })
+            
+            DispatchQueue.main.async {
+                UIApplication.shared.applicationIconBadgeNumber = uniqueProductIds.count
+            }
+        }
     }
 }
 

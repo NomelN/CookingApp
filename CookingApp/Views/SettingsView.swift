@@ -16,7 +16,6 @@ struct SettingsView: View {
                     VStack(spacing: 24) {
                         NotificationSection()
                         ThemeSection()
-                        DebugSection()
                         AboutSection()
                     }
                     .padding(.horizontal, 16)
@@ -155,107 +154,6 @@ struct SettingsView: View {
         .shadow(color: ColorTheme.shadowColor, radius: 8, x: 0, y: 4)
     }
     
-    // MARK: - Debug Section
-    @ViewBuilder
-    private func DebugSection() -> some View {
-        #if DEBUG
-        VStack(spacing: 20) {
-            SectionHeader(
-                title: "Debug Notifications",
-                subtitle: "Outils de test et débogage",
-                iconName: "bell.badge.fill",
-                color: ColorTheme.primaryGreen
-            )
-            
-            VStack(spacing: 12) {
-                DebugButton(
-                    title: "Tester les notifications",
-                    icon: "bell.circle.fill",
-                    color: ColorTheme.primaryBlue,
-                    detail: "3 sec"
-                ) {
-                    notificationManager.sendTestNotification()
-                }
-                
-                DebugButton(
-                    title: "Lister notifications programmées",
-                    icon: "list.bullet.circle.fill",
-                    color: ColorTheme.primaryGreen,
-                    detail: "Console"
-                ) {
-                    notificationManager.listPendingNotifications()
-                }
-                
-                DebugButton(
-                    title: "Vérifier permissions",
-                    icon: "checkmark.shield.fill",
-                    color: ColorTheme.primaryPurple,
-                    statusIndicator: notificationManager.hasPermission
-                ) {
-                    notificationManager.checkPermission()
-                }
-                
-                DebugButton(
-                    title: "Test notification immédiate",
-                    icon: "bell.fill",
-                    color: ColorTheme.accentOrange,
-                    detail: "15 sec"
-                ) {
-                    notificationManager.sendImmediateTestNotification()
-                }
-                
-                DebugButton(
-                    title: "Nettoyer toutes notifications",
-                    icon: "trash.circle.fill",
-                    color: Color.red,
-                    detail: "Reset"
-                ) {
-                    notificationManager.cleanupAndRescheduleAllNotifications()
-                }
-            }
-        }
-        .padding(20)
-        .background(ColorTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: ColorTheme.shadowColor, radius: 8, x: 0, y: 4)
-        #endif
-    }
-    
-    @ViewBuilder
-    private func DebugButton(
-        title: String,
-        icon: String,
-        color: Color,
-        detail: String? = nil,
-        statusIndicator: Bool? = nil,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            HStack {
-                Image(systemName: icon)
-                    .foregroundColor(color)
-                
-                Text(title)
-                    .foregroundColor(ColorTheme.primaryText)
-                
-                Spacer()
-                
-                if let detail = detail {
-                    Text(detail)
-                        .font(.caption)
-                        .foregroundColor(ColorTheme.secondaryText)
-                } else if let status = statusIndicator {
-                    Circle()
-                        .fill(status ? ColorTheme.primaryGreen : Color.red)
-                        .frame(width: 12, height: 12)
-                }
-            }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 16)
-            .background(ColorTheme.sectionBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-    }
     
     // MARK: - About Section
     @ViewBuilder

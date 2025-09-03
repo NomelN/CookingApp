@@ -49,6 +49,8 @@ struct MainTabView: View {
                 }
                 .onAppear {
                     viewModel.forceRefreshView()
+                    // Effacer le badge quand l'utilisateur ouvre le dashboard
+                    NotificationManager.shared.clearAppBadge()
                 }
             }
             .navigationViewStyle(StackNavigationViewStyle())
@@ -74,6 +76,8 @@ struct MainTabView: View {
         .accentColor(ColorTheme.primaryBlue)
         .onAppear {
             viewModel.forceRefreshView()
+            // Effacer le badge quand l'utilisateur ouvre l'onglet produits
+            NotificationManager.shared.clearAppBadge()
         }
     }
 }
