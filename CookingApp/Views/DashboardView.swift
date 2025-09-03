@@ -226,7 +226,7 @@ struct ProductCardView: View {
                             .frame(height: 3)
                         
                         Rectangle()
-                            .fill(product.statusColor(from: viewModel.lastRefresh).opacity(0.8))
+                            .fill(progressBarColor.opacity(0.8))
                             .frame(width: max(0, geometry.size.width * progressPercentage), height: 3)
                     }
                 }
@@ -276,13 +276,47 @@ struct ProductCardView: View {
     }
     
     private var progressPercentage: Double {
-        guard let expirationDate = product.expirationDate,
-              let createdAt = product.createdAt else { return 0.0 }
+        let daysRemaining = product.daysUntilExpiration(from: viewModel.lastRefresh)
+        let status = product.expirationStatus(from: viewModel.lastRefresh)
         
-        let totalDays = Calendar.current.dateComponents([.day], from: createdAt, to: expirationDate).day ?? 1
-        let remainingDays = max(0, product.daysUntilExpiration(from: viewModel.lastRefresh))
+        // Si expiré ou expire aujourd'hui : jauge complète (100%)
+        if daysRemaining <= 0 {
+            return 1.0
+        }
         
-        return totalDays > 0 ? Double(totalDays - remainingDays) / Double(totalDays) : 1.0
+        let progress: Double
+        
+        // Logique simple selon les états
+        switch status {
+        case .expired:
+            progress = 1.0 // 100% - rouge
+        case .critical: // 1-3 jours
+            progress = 0.8 + (Double(3 - daysRemaining) * 0.2 / 3.0) // 80% à 100%
+        case .warning: // 4-7 jours  
+            progress = 0.5 + (Double(7 - daysRemaining) * 0.3 / 4.0) // 50% à 80%
+        case .good: // >7 jours
+            if daysRemaining > 30 {
+                progress = 0.0 // Pas de progression pour produits très frais
+            } else {
+                progress = Double(30 - daysRemaining) * 0.5 / 23.0 // 0% à 50%
+            }
+        }
+        
+        return max(0.0, min(1.0, progress))
+    }
+    
+    private var progressBarColor: Color {
+        let currentStatus = product.expirationStatus(from: viewModel.lastRefresh)
+        switch currentStatus {
+        case .good:
+            return ColorTheme.freshGreen
+        case .warning:
+            return ColorTheme.warningYellow
+        case .critical:
+            return ColorTheme.criticalOrange
+        case .expired:
+            return ColorTheme.expiredRed
+        }
     }
     
     private let dateFormatter: DateFormatter = {
