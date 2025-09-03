@@ -161,10 +161,7 @@ struct ProductCardView: View {
                         // Menu d'actions
                         Menu {
                             Button(action: {
-                                print("🔘 Bouton Consommer cliqué pour: \(product.name ?? "Produit inconnu")")
-                                print("🆔 ID du produit: \(product.id?.uuidString ?? "PAS D'ID")")
                                 alertType = .consume
-                                print("⚠️ AlertType défini sur .consume")
                             }) {
                                 Label("Consommer", systemImage: "checkmark.circle.fill")
                             }
@@ -268,21 +265,17 @@ struct ProductCardView: View {
         .scaleEffect(1.0)
         .animation(.easeInOut(duration: 0.2), value: product.isUsed)
         .alert(item: $alertType) { alertType in
-            print("🚨 Alerte déclenchée pour type: \(alertType) - Produit: \(product.name ?? "inconnu")")
             switch alertType {
             case .consume:
                 return Alert(
                     title: Text("Marquer comme consommé"),
                     message: Text("Êtes-vous sûr de vouloir marquer \"\(product.name ?? "ce produit")\" comme consommé ?"),
                     primaryButton: .destructive(Text("Consommer")) {
-                        print("✅ Confirmation de la consommation pour: \(product.name ?? "inconnu")")
                         withAnimation(.spring()) {
                             viewModel.markAsUsed(product)
                         }
                     },
-                    secondaryButton: .cancel {
-                        print("❌ Annulation de la consommation pour: \(product.name ?? "inconnu")")
-                    }
+                    secondaryButton: .cancel()
                 )
             case .delete:
                 return Alert(

@@ -141,24 +141,14 @@ class ProductsViewModel: ObservableObject {
     }
     
     func markAsUsed(_ product: Product) {
-        print("🔄 Tentative de marquage comme utilisé pour: \(product.name ?? "Produit inconnu")")
-        print("📋 ID du produit: \(product.id?.uuidString ?? "Pas d'ID")")
-        print("⚙️ État actuel isUsed: \(product.isUsed)")
-        
         product.isUsed = true
-        print("✅ Produit marqué comme utilisé: \(product.isUsed)")
-        
         notificationManager.removeNotifications(for: product)
-        print("🔕 Notifications supprimées")
-        
         persistenceController.save()
-        print("💾 Core Data sauvegardé")
         
         // Force un rafraîchissement des vues sans recharger complètement
         DispatchQueue.main.async {
             self.objectWillChange.send()
         }
-        print("🔄 Vues rafraîchies")
     }
     
     func deleteProduct(_ product: Product) {
