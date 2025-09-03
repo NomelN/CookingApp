@@ -4,20 +4,26 @@ class ProductDatabaseService {
     static let shared = ProductDatabaseService()
     
     private let rateLimiter = RateLimiter(maxRequests: 90, timeWindow: 60) // 90/min pour rester sous la limite
+    private let urlSession: URLSession
     
-    private init() {}
+    private init() {
+        // Configuration URLSession avec timeout pour éviter les hangs
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForRequest = 10.0 // 10 secondes
+        configuration.timeoutIntervalForResource = 30.0 // 30 secondes total
+        self.urlSession = URLSession(configuration: configuration)
+    }
     
     func fetchProductInfo(barcode: String, completion: @escaping (ProductInfo?) -> Void) {
         // Vérifier le rate limiting
         guard rateLimiter.canMakeRequest() else {
-            print("⚠️ Rate limit atteint, requête reportée")
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 self.fetchProductInfo(barcode: barcode, completion: completion)
             }
             return
         }
         
-        let urlString = "https://world.openfoodfacts.net/api/v0/product/\(barcode).json"
+        let urlString = "https://world.openfoodfacts.org/api/v0/product/\(barcode).json"
         
         guard let url = URL(string: urlString) else {
             DispatchQueue.main.async {
@@ -26,17 +32,14 @@ class ProductDatabaseService {
             return
         }
         
-        print("🔍 Recherche du produit avec le code-barres: \(barcode)")
         
         // Créer une requête avec User-Agent personnalisé
         var request = URLRequest(url: url)
         request.setValue("CookingApp/1.0 (nomelmickael51@gmail.com)", forHTTPHeaderField: "User-Agent")
         
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        urlSession.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
-                // Gestion d'erreurs réseau améliorée
                 if let error = error {
-                    print("❌ Erreur réseau: \(error.localizedDescription)")
                     completion(nil)
                     return
                 }
@@ -46,23 +49,16 @@ class ProductDatabaseService {
                     switch httpResponse.statusCode {
                     case 200:
                         break // OK
-                    case 429:
-                        print("⚠️ Rate limit dépassé côté serveur")
-                        completion(nil)
-                        return
-                    case 404:
-                        print("❌ Produit non trouvé (404)")
+                    case 429, 404:
                         completion(nil)
                         return
                     default:
-                        print("❌ Erreur HTTP \(httpResponse.statusCode)")
                         completion(nil)
                         return
                     }
                 }
                 
                 guard let data = data else {
-                    print("❌ Aucune donnée reçue")
                     completion(nil)
                     return
                 }
@@ -71,7 +67,6 @@ class ProductDatabaseService {
                     let result = try JSONDecoder().decode(OpenFoodFactsResponse.self, from: data)
                     
                     if result.status == 1, let product = result.product {
-                        print("✅ Produit trouvé: \(product.displayName ?? "Sans nom")")
                         let productInfo = ProductInfo(
                             displayName: product.displayName,
                             productDescription: product.productDescription,
@@ -79,11 +74,9 @@ class ProductDatabaseService {
                         )
                         completion(productInfo)
                     } else {
-                        print("❌ Produit non trouvé dans la base de données (status: \(result.status))")
                         completion(nil)
                     }
                 } catch {
-                    print("❌ Erreur de décodage JSON: \(error)")
                     completion(nil)
                 }
             }
@@ -133,9 +126,11 @@ struct OpenFoodFactsProduct: Codable {
         return productNameFr ?? productName
     }
     
-    // URL d'image optimisée
+    // URL d'image optimisée - utilise .org au lieu de .net pour éviter les erreurs de connexion
     var bestImageUrl: String? {
-        return imageFrontSmallUrl ?? imageFrontUrl ?? imageUrl
+        let imageUrl = imageFrontSmallUrl ?? imageFrontUrl ?? self.imageUrl
+        // Remplacer .net par .org pour les URLs d'images si nécessaire
+        return imageUrl?.replacingOccurrences(of: "openfoodfacts.net", with: "openfoodfacts.org")
     }
     
     // Description combinée pour l'utilisateur
