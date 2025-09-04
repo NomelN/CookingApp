@@ -165,90 +165,29 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         let identifier = "\(product.id?.uuidString ?? UUID().uuidString)_immediate_\(daysUntilExpiration)"
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
         
-        print("📤 TENTATIVE D'AJOUT DE NOTIFICATION:")
-        print("   🏷️ Produit: \(productName)")
-        print("   📱 Titre: \(content.title)")
-        print("   📝 Corps: \(content.body)")
-        print("   🆔 ID: \(identifier)")
-        print("   🧵 ThreadID: \(content.threadIdentifier ?? "none")")
-        print("   ⏰ Délai: \(String(format: "%.1f", delay))s")
-        
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
-                print("❌ ÉCHEC pour \(productName): \(error.localizedDescription)")
-            } else {
-                print("✅ SUCCÈS pour \(productName) - Notification ajoutée à la file iOS")
-                
-                // Vérifier immédiatement les notifications en attente
-                UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
-                    let matchingRequests = requests.filter { $0.identifier.contains(product.id?.uuidString ?? "") }
-                    print("🔍 Notifications en attente pour ce produit: \(matchingRequests.count)")
-                    for req in matchingRequests {
-                        print("   - \(req.identifier): \(req.content.title)")
-                    }
-                }
+                print("Erreur lors de l'envoi de la notification immédiate: \(error)")
             }
         }
     }
     
     func sendImmediateNotificationsForAllProducts(products: [Product]) {
-        print("🔔 === ENVOI DES NOTIFICATIONS IMMÉDIATES ===")
-        
         // Grouper les produits par nombre de jours restants
         let activeProducts = products.filter { !$0.isUsed }
-        print("📦 Produits actifs (non utilisés): \(activeProducts.count)")
-        
         let groupedProducts = Dictionary(grouping: activeProducts) { product in
             max(0, product.daysUntilExpiration) // Traiter les négatifs comme 0
         }
         
-        print("📊 Groupement par jours restants:")
-        for (days, products) in groupedProducts.sorted(by: { $0.key < $1.key }) {
-            print("   \(days) jour(s): \(products.count) produit(s) - \(products.compactMap { $0.name }.joined(separator: ", "))")
-        }
-        
         // Envoyer une notification pour chaque groupe de produits
-        var notificationsSent = 0
         for (daysUntil, productsInGroup) in groupedProducts {
             // Pour chaque intervalle critique
             if daysUntil == 7 || daysUntil == 3 || daysUntil == 1 || daysUntil == 0 {
-                print("🚨 Envoi de notifications pour \(daysUntil) jour(s) restant(s):")
                 for product in productsInGroup {
-                    if let name = product.name {
-                        print("   📤 Envoi notification pour: \(name)")
-                        sendImmediateNotification(for: product, daysUntilExpiration: daysUntil)
-                        notificationsSent += 1
-                    }
+                    sendImmediateNotification(for: product, daysUntilExpiration: daysUntil)
                 }
-            } else {
-                print("ℹ️ Pas de notification pour \(daysUntil) jour(s) restant(s) (hors intervalles critiques)")
             }
         }
-        
-        print("✅ Total notifications envoyées: \(notificationsSent)")
-        
-        // Vérification finale de toutes les notifications en attente
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-            UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
-                print("🔍 === VÉRIFICATION FINALE DES NOTIFICATIONS EN ATTENTE ===")
-                print("📊 Total notifications dans la file iOS: \(requests.count)")
-                
-                let immediateRequests = requests.filter { $0.identifier.contains("_immediate_") }
-                print("🚨 Notifications immédiates en attente: \(immediateRequests.count)")
-                
-                for (index, request) in immediateRequests.enumerated() {
-                    if let trigger = request.trigger as? UNTimeIntervalNotificationTrigger {
-                        print("   [\(index+1)] \(request.content.title)")
-                        print("       ID: \(request.identifier)")
-                        print("       Délai: \(String(format: "%.1f", trigger.timeInterval))s")
-                        print("       ---")
-                    }
-                }
-                print("========================================================")
-            }
-        }
-        
-        print("============================================")
     }
     
     func scheduleAllNotifications(for product: Product, settings: NotificationSettings) {
@@ -313,13 +252,6 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
     func userNotificationCenter(_ center: UNUserNotificationCenter, 
                                willPresent notification: UNNotification, 
                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        print("🔔 === NOTIFICATION REÇUE (APP AU PREMIER PLAN) ===")
-        print("📱 Titre: \(notification.request.content.title)")
-        print("📝 Corps: \(notification.request.content.body)")
-        print("🆔 Identifier: \(notification.request.identifier)")
-        print("🧵 ThreadID: \(notification.request.content.threadIdentifier ?? "none")")
-        print("🔊 Son: \(notification.request.content.sound?.description ?? "none")")
-        
         // Afficher la notification même en premier plan avec son, alerte ET badge
         completionHandler([.alert, .sound, .badge])
         
@@ -327,42 +259,27 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         DispatchQueue.main.async {
             let currentBadge = UIApplication.shared.applicationIconBadgeNumber
             UIApplication.shared.applicationIconBadgeNumber = currentBadge + 1
-            print("🏷️ Badge mis à jour: \(currentBadge) → \(currentBadge + 1)")
         }
-        
-        print("✅ Notification affichée avec [.alert, .sound, .badge]")
-        print("================================================")
     }
     
     func userNotificationCenter(_ center: UNUserNotificationCenter, 
                                didReceive response: UNNotificationResponse, 
                                withCompletionHandler completionHandler: @escaping () -> Void) {
-        print("👆 === INTERACTION UTILISATEUR AVEC NOTIFICATION ===")
-        print("📱 Titre: \(response.notification.request.content.title)")
-        print("📝 Corps: \(response.notification.request.content.body)")
-        print("🆔 Identifier: \(response.notification.request.identifier)")
-        print("🎯 Action: \(response.actionIdentifier)")
-        
         // Gérer les actions personnalisées
         switch response.actionIdentifier {
         case "VIEW_PRODUCT":
-            print("👀 Action: Voir le produit")
             // TODO: Naviguer vers le produit
             break
         case "MARK_USED":
-            print("✅ Action: Marquer comme utilisé")
             // TODO: Marquer le produit comme utilisé
             break
         case UNNotificationDefaultActionIdentifier:
-            print("📱 Action: Ouverture par défaut de l'app")
             // TODO: Ouvrir l'app sur la liste des produits
             break
         default:
-            print("❓ Action inconnue: \(response.actionIdentifier)")
             break
         }
         
-        print("==============================================")
         completionHandler()
     }
     

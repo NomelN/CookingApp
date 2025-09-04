@@ -191,28 +191,7 @@ class ProductsViewModel: ObservableObject {
     }
     
     func checkAndSendImmediateNotifications() {
-        print("🔍 === DEBUG PRODUITS ET NOTIFICATIONS ===")
-        print("📅 Date actuelle: \(Date())")
-        print("📦 Nombre total de produits: \(products.count)")
-        
-        // Afficher tous les produits avec leurs détails
-        for (index, product) in products.enumerated() {
-            guard let name = product.name, let expirationDate = product.expirationDate else { continue }
-            let daysUntil = product.daysUntilExpiration
-            let isUsed = product.isUsed
-            
-            print("📦 [\(index+1)] \(name)")
-            print("   📅 Expire le: \(DateFormatter.localizedString(from: expirationDate, dateStyle: .medium, timeStyle: .none))")
-            print("   ⏰ Jours restants: \(daysUntil)")
-            print("   ✅ Utilisé: \(isUsed ? "Oui" : "Non")")
-            let adjustedDaysUntil = max(0, daysUntil) // Même logique que NotificationManager
-            print("   🔔 Notification immédiate nécessaire: \((!isUsed && (adjustedDaysUntil == 0 || adjustedDaysUntil == 1 || adjustedDaysUntil == 3 || adjustedDaysUntil == 7)) ? "OUI" : "NON")")
-            print("   ---")
-        }
-        
         // Envoyer des notifications immédiates pour tous les produits concernés
         notificationManager.sendImmediateNotificationsForAllProducts(products: products)
-        print("🔔 Envoi des notifications terminé")
-        print("=====================================")
     }
 }
