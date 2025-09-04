@@ -257,7 +257,7 @@ struct AddProductView: View {
                     self.scannedBarcode = nil
                 } else {
                     // Produit non trouvé dans la base de données
-                    self.scannerAlertMessage = "Produit non trouvé dans la base de données Open Food Facts. Veuillez saisir les informations manuellement."
+                    self.scannerAlertMessage = "Produit non trouvé dans la base de données. Veuillez saisir les informations manuellement."
                     self.scannedBarcode = nil
                 }
             }
