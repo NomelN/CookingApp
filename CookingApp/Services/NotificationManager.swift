@@ -74,7 +74,7 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         var notificationDateComponents = Calendar.current.dateComponents([.year, .month, .day], from: baseNotificationDate)
         notificationDateComponents.hour = 9
         notificationDateComponents.minute = 0
-        notificationDateComponents.timeZone = TimeZone.current
+        notificationDateComponents.timeZone = nil
         
         guard let finalNotificationDate = Calendar.current.date(from: notificationDateComponents) else {
             return
@@ -88,7 +88,7 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
                 var tomorrowComponents = Calendar.current.dateComponents([.year, .month, .day], from: now.addingTimeInterval(86400))
                 tomorrowComponents.hour = 9
                 tomorrowComponents.minute = 0
-                tomorrowComponents.timeZone = TimeZone.current
+                tomorrowComponents.timeZone = nil
                 
                 guard let tomorrowDate = Calendar.current.date(from: tomorrowComponents) else {
                     return
@@ -113,8 +113,8 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         content.sound = .default
         content.categoryIdentifier = "EXPIRATION_REMINDER"
         
-        // iOS va incrémenter automatiquement le badge à chaque notification reçue
-        content.badge = NSNumber(value: 1)
+        // Laisser iOS gérer le badge automatiquement
+        content.badge = nil
         
         let trigger = UNCalendarNotificationTrigger(
             dateMatching: notificationDateComponents,
@@ -134,31 +134,59 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         guard let productName = product.name else { return }
         
         let content = UNMutableNotificationContent()
-        content.title = "🍎 Attention à vos produits !"
         
+        // Titre totalement unique pour chaque notification (inclure nom du produit)
         if daysUntilExpiration == 0 {
-            content.body = "⚠️ \(productName) expire aujourd'hui !"
+            content.title = "⚠️ \(productName) - Expiré"
+            content.body = "Ce produit expire aujourd'hui !"
         } else if daysUntilExpiration == 1 {
-            content.body = "🟡 \(productName) expire demain !"
+            content.title = "🟡 \(productName) - 1 jour"
+            content.body = "Ce produit expire demain"
         } else if daysUntilExpiration == 3 {
-            content.body = "🟠 \(productName) expire dans 3 jours !"
+            content.title = "🟠 \(productName) - 3 jours"
+            content.body = "Ce produit expire dans 3 jours"
         } else if daysUntilExpiration == 7 {
-            content.body = "🟠 \(productName) expire dans 7 jours !"
+            content.title = "🟠 \(productName) - 7 jours" 
+            content.body = "Ce produit expire dans 7 jours"
         } else {
-            content.body = "🟠 \(productName) expire bientôt !"
+            content.title = "🍎 \(productName) - Attention"
+            content.body = "Ce produit expire bientôt"
         }
         
         content.sound = .default
         content.categoryIdentifier = "EXPIRATION_REMINDER"
-        content.badge = NSNumber(value: 1) // iOS va incrémenter le badge
+        content.badge = nil
+        // Éviter le regroupement en donnant un threadIdentifier unique
+        content.threadIdentifier = product.id?.uuidString ?? UUID().uuidString
         
-        // Notification immédiate (dans 1 seconde)
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
-        let identifier = "\(product.id?.uuidString ?? UUID().uuidString)_immediate"
+        // Échelonner légèrement les notifications pour éviter la collision
+        let delay = Double.random(in: 0.1...2.0)
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: delay, repeats: false)
+        let identifier = "\(product.id?.uuidString ?? UUID().uuidString)_immediate_\(daysUntilExpiration)"
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
         
-        UNUserNotificationCenter.current().add(request) { _ in
-            // Le badge sera géré automatiquement par iOS
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("Erreur lors de l'envoi de la notification immédiate: \(error)")
+            }
+        }
+    }
+    
+    func sendImmediateNotificationsForAllProducts(products: [Product]) {
+        // Grouper les produits par nombre de jours restants
+        let activeProducts = products.filter { !$0.isUsed }
+        let groupedProducts = Dictionary(grouping: activeProducts) { product in
+            max(0, product.daysUntilExpiration) // Traiter les négatifs comme 0
+        }
+        
+        // Envoyer une notification pour chaque groupe de produits
+        for (daysUntil, productsInGroup) in groupedProducts {
+            // Pour chaque intervalle critique
+            if daysUntil == 7 || daysUntil == 3 || daysUntil == 1 || daysUntil == 0 {
+                for product in productsInGroup {
+                    sendImmediateNotification(for: product, daysUntilExpiration: daysUntil)
+                }
+            }
         }
     }
     
@@ -225,8 +253,13 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
                                willPresent notification: UNNotification, 
                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         // Afficher la notification même en premier plan avec son, alerte ET badge
-        // iOS va automatiquement incrémenter le badge
         completionHandler([.alert, .sound, .badge])
+        
+        // Incrémenter manuellement le badge car willPresent peut ne pas le faire
+        DispatchQueue.main.async {
+            let currentBadge = UIApplication.shared.applicationIconBadgeNumber
+            UIApplication.shared.applicationIconBadgeNumber = currentBadge + 1
+        }
     }
     
     func userNotificationCenter(_ center: UNUserNotificationCenter, 

@@ -84,45 +84,17 @@ struct MainTabView: View {
 
 struct ProductListView: View {
     @ObservedObject var viewModel: ProductsViewModel
-    @State private var selectedProduct: Product?
     
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 16) {
+            VStack(spacing: 16) {
                 ForEach(viewModel.sortedProducts, id: \.id) { product in
                     ProductCardView(product: product, viewModel: viewModel)
-                        .onTapGesture {
-                            selectedProduct = product
-                        }
-                        .contextMenu {
-                            Button(action: {
-                                withAnimation(.spring()) {
-                                    viewModel.markAsUsed(product)
-                                }
-                            }) {
-                                Label("Marquer comme utilisé", systemImage: "checkmark.circle.fill")
-                            }
-                            
-                            Button(action: {
-                                selectedProduct = product
-                            }) {
-                                Label("Modifier", systemImage: "pencil")
-                            }
-                            
-                            Button(action: {
-                                viewModel.deleteProduct(product)
-                            }) {
-                                Label("Supprimer", systemImage: "trash")
-                            }
-                            .foregroundColor(.red)
-                        }
+                        .id(product.id) // Force une identité unique pour chaque vue
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-        }
-        .sheet(item: $selectedProduct) { product in
-            EditProductView(product: product, viewModel: viewModel)
         }
     }
 }
@@ -131,7 +103,13 @@ struct ProductCardView: View {
     let product: Product
     @ObservedObject var viewModel: ProductsViewModel
     @EnvironmentObject private var themeManager: ThemeManager
-    @State private var showingConsumeAlert = false
+    @State private var alertType: AlertType? = nil
+    @State private var selectedProduct: Product?
+    
+    enum AlertType: Identifiable {
+        case consume, delete
+        var id: Int { hashValue }
+    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -168,28 +146,48 @@ struct ProductCardView: View {
                                 .font(.headline)
                                 .fontWeight(.semibold)
                                 .foregroundColor(ColorTheme.primaryText(isDark: themeManager.isDarkMode))
-                                .lineLimit(1)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
                             
                             if let description = product.productDescription, !description.isEmpty {
                                 Text(description)
                                     .font(.subheadline)
                                     .foregroundColor(ColorTheme.secondaryText(isDark: themeManager.isDarkMode))
-                                    .lineLimit(1)
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.leading)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
                         }
                         
                         Spacer()
                         
-                        // Bouton marquer comme consommé
-                        Button(action: {
-                            showingConsumeAlert = true
-                        }) {
-                            Image(systemName: "checkmark.circle")
+                        // Menu d'actions
+                        Menu {
+                            Button(action: {
+                                alertType = .consume
+                            }) {
+                                Label("Consommer", systemImage: "checkmark.circle.fill")
+                            }
+                            
+                            Button(action: {
+                                selectedProduct = product
+                            }) {
+                                Label("Modifier", systemImage: "pencil")
+                            }
+                            
+                            Button(role: .destructive, action: {
+                                alertType = .delete
+                            }) {
+                                Label("Supprimer", systemImage: "trash")
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis.circle.fill")
                                 .font(.title2)
-                                .foregroundColor(ColorTheme.primaryGreen)
+                                .foregroundColor(ColorTheme.primaryBlue)
                                 .background(
                                     Circle()
-                                        .fill(ColorTheme.primaryGreen.opacity(0.1))
+                                        .fill(ColorTheme.primaryBlue.opacity(0.1))
                                         .frame(width: 32, height: 32)
                                 )
                         }
@@ -270,15 +268,34 @@ struct ProductCardView: View {
         .shadow(color: ColorTheme.shadowColor(isDark: themeManager.isDarkMode).opacity(0.15), radius: 12, x: 0, y: 6)
         .scaleEffect(1.0)
         .animation(.easeInOut(duration: 0.2), value: product.isUsed)
-        .alert("Marquer comme consommé", isPresented: $showingConsumeAlert) {
-            Button("Annuler", role: .cancel) { }
-            Button("Consommer", role: .destructive) {
-                withAnimation(.spring()) {
-                    viewModel.markAsUsed(product)
-                }
+        .alert(item: $alertType) { alertType in
+            switch alertType {
+            case .consume:
+                return Alert(
+                    title: Text("Marquer comme consommé"),
+                    message: Text("Êtes-vous sûr de vouloir marquer \"\(product.name ?? "ce produit")\" comme consommé ?"),
+                    primaryButton: .destructive(Text("Consommer")) {
+                        withAnimation(.spring()) {
+                            viewModel.markAsUsed(product)
+                        }
+                    },
+                    secondaryButton: .cancel()
+                )
+            case .delete:
+                return Alert(
+                    title: Text("Supprimer le produit"),
+                    message: Text("Êtes-vous sûr de vouloir supprimer \"\(product.name ?? "ce produit")\" ? Cette action est irréversible."),
+                    primaryButton: .destructive(Text("Supprimer")) {
+                        withAnimation(.spring()) {
+                            viewModel.deleteProduct(product)
+                        }
+                    },
+                    secondaryButton: .cancel()
+                )
             }
-        } message: {
-            Text("Êtes-vous sûr de vouloir marquer \"\(product.name ?? "ce produit")\" comme consommé ?")
+        }
+        .sheet(item: $selectedProduct) { product in
+            EditProductView(product: product, viewModel: viewModel)
         }
     }
     

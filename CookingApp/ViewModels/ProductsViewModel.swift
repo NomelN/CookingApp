@@ -46,12 +46,17 @@ class ProductsViewModel: ObservableObject {
         fetchProducts()
         startAutoRefresh()
         
+        // Envoyer les notifications immédiates pour tous les produits concernés au démarrage
+        checkAndSendImmediateNotifications()
+        
         // Observer pour rafraîchir quand l'app revient au premier plan
         NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)
             .sink { _ in
                 DispatchQueue.main.async {
                     self.lastRefresh = Date()
                     self.objectWillChange.send()
+                    // Vérifier les notifications à chaque retour au premier plan
+                    self.checkAndSendImmediateNotifications()
                 }
             }
             .store(in: &cancellables)
@@ -144,7 +149,11 @@ class ProductsViewModel: ObservableObject {
         product.isUsed = true
         notificationManager.removeNotifications(for: product)
         persistenceController.save()
-        fetchProducts()
+        
+        // Force un rafraîchissement des vues sans recharger complètement
+        DispatchQueue.main.async {
+            self.objectWillChange.send()
+        }
     }
     
     func deleteProduct(_ product: Product) {
@@ -179,5 +188,10 @@ class ProductsViewModel: ObservableObject {
             self.products = self.products
             self.objectWillChange.send()
         }
+    }
+    
+    func checkAndSendImmediateNotifications() {
+        // Envoyer des notifications immédiates pour tous les produits concernés
+        notificationManager.sendImmediateNotificationsForAllProducts(products: products)
     }
 }
