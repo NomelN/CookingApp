@@ -28,7 +28,7 @@ struct AddProductView: View {
                 ColorTheme.backgroundLight
                     .ignoresSafeArea()
                 
-                ScrollView {
+                ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 24) {
                         // Section informations
                         VStack(spacing: 20) {
@@ -100,10 +100,11 @@ struct AddProductView: View {
                                 if let productImage = productImage {
                                     Image(uiImage: productImage)
                                         .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                        .frame(height: 220)
+                                        .scaledToFit()
+                                        .frame(maxWidth: .infinity, idealHeight: 200, maxHeight: 220)
                                         .clipShape(RoundedRectangle(cornerRadius: 20))
                                         .shadow(color: ColorTheme.shadowColor, radius: 8, x: 0, y: 4)
+                                        .clipped() // Important: force le clipping
                                 } else {
                                     EmptyImagePlaceholderView()
                                 }
@@ -236,11 +237,15 @@ struct AddProductView: View {
                 if let product = productInfo {
                     // Préremplir les champs avec les informations trouvées
                     if let name = product.displayName, self.productName.isEmpty {
-                        self.productName = name
+                        // Limiter la longueur du nom pour éviter les problèmes d'UI
+                        let truncatedName = name.count > 80 ? String(name.prefix(80)) + "..." : name
+                        self.productName = truncatedName
                     }
                     
                     if let description = product.productDescription, self.productDescription.isEmpty {
-                        self.productDescription = description
+                        // Limiter la longueur de la description
+                        let truncatedDescription = description.count > 200 ? String(description.prefix(200)) + "..." : description
+                        self.productDescription = truncatedDescription
                     }
                     
                     // Charger l'image du produit si disponible
@@ -372,7 +377,9 @@ struct CustomTextField: View {
                     .font(.system(size: 16, weight: .medium))
                     .padding(18)
                     .autocorrectionDisabled()
+                    .lineLimit(2...4)
             }
+            .frame(minHeight: 56) // Hauteur minimale fixe pour éviter les sauts de layout
             .background(ColorTheme.fieldBackground)
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .overlay(
@@ -578,9 +585,13 @@ struct BarcodescannerButtonView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(isLoading ? "Recherche en cours..." : "Scanner un code-barres")
                         .font(.system(size: 16, weight: .semibold))
-                    Text(isLoading ? "Veuillez patienter" : "Identification automatique du produit")
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    Text(isLoading ? "Veuillez patienter" : "Identification automatique")
                         .font(.system(size: 12, weight: .medium))
                         .opacity(0.9)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
                 
                 Spacer()

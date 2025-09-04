@@ -146,13 +146,17 @@ struct ProductCardView: View {
                                 .font(.headline)
                                 .fontWeight(.semibold)
                                 .foregroundColor(ColorTheme.primaryText(isDark: themeManager.isDarkMode))
-                                .lineLimit(1)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
                             
                             if let description = product.productDescription, !description.isEmpty {
                                 Text(description)
                                     .font(.subheadline)
                                     .foregroundColor(ColorTheme.secondaryText(isDark: themeManager.isDarkMode))
-                                    .lineLimit(1)
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.leading)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
                         }
                         
